@@ -8,6 +8,10 @@
 (() => {
   'use strict';
 
+  // Cegah script jalan dua kali (misalnya tag <script> dobel di template)
+  if (window.__byteBudgetLoaded) return;
+  window.__byteBudgetLoaded = true;
+
   // =====================================================================
   // KONFIGURASI & HELPER
   // =====================================================================
