@@ -1,0 +1,1269 @@
+{% load humanize l10n static %}
+{% url 'rekomendasi_laptop' as form_url %}{% if product_type == 'pc' %}{% url 'rekomendasi_pc' as form_url %}{% endif %}
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title|default:"Hasil rekomendasi" }} – ByteBudget</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <script>
+      (function () {
+        var d = document.documentElement;
+        d.classList.add("js");
+        try {
+          var t = localStorage.getItem("theme");
+          if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+            d.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              canvas: "rgb(var(--base) / <alpha-value>)",
+              fg: "rgb(var(--fg) / <alpha-value>)",
+              mut: "rgb(var(--mut) / <alpha-value>)",
+              line: "rgb(var(--line) / <alpha-value>)",
+              surface: "rgb(var(--surface) / <alpha-value>)",
+            },
+            fontFamily: {
+              sans: ["Geist", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" defer></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" defer></script>
+
+    <style>
+      /* ===== Token: hitam putih ===== */
+      :root {
+        --base: 255 255 255;
+        --fg: 0 0 0;
+        --mut: 107 107 107;
+        --line: 229 229 229;
+        --surface: 246 246 246;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .dark {
+        --base: 0 0 0;
+        --fg: 255 255 255;
+        --mut: 160 160 160;
+        --line: 40 40 40;
+        --surface: 14 14 14;
+      }
+      .inv {
+        --base: 0 0 0;
+        --fg: 255 255 255;
+        --mut: 160 160 160;
+        --line: 44 44 44;
+        --surface: 18 18 18;
+        background: rgb(var(--base));
+        color: rgb(var(--fg));
+      }
+      .dark .inv {
+        --base: 255 255 255;
+        --fg: 0 0 0;
+        --mut: 107 107 107;
+        --line: 226 226 226;
+        --surface: 244 244 244;
+      }
+
+      html { background: rgb(var(--base)); }
+      body {
+        background: rgb(var(--base));
+        color: rgb(var(--fg));
+        font-feature-settings: "ss01", "cv11";
+        -webkit-font-smoothing: antialiased;
+        transition: background-color .4s, color .4s;
+      }
+      ::selection { background: rgb(var(--fg)); color: rgb(var(--base)); }
+      :focus-visible { outline: 2px solid rgb(var(--fg)); outline-offset: 3px; border-radius: 8px; }
+
+      .h1 {
+        font-weight: 600;
+        font-size: clamp(2.9rem, 7vw, 5.6rem);
+        line-height: .98;
+        letter-spacing: -0.055em;
+      }
+      .h2 {
+        font-weight: 600;
+        font-size: clamp(2.1rem, 4.6vw, 3.7rem);
+        line-height: 1.02;
+        letter-spacing: -0.045em;
+      }
+      .lead { font-size: 1.125rem; line-height: 1.65; color: rgb(var(--mut)); }
+      .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+      /* ===== Sistem animasi slide (aktif hanya kalau JS jalan) ===== */
+      [data-rv] {
+        transition: transform 1s var(--ease), opacity 1s var(--ease), clip-path 1.1s var(--ease);
+        transition-delay: calc(var(--i, 0) * 90ms + var(--d, 0ms));
+      }
+      .js [data-rv="up"]    { opacity: 0; transform: translateY(48px); }
+      .js [data-rv="down"]  { opacity: 0; transform: translateY(-28px); }
+      .js [data-rv="left"]  { opacity: 0; transform: translateX(-72px); }
+      .js [data-rv="right"] { opacity: 0; transform: translateX(72px); }
+      .js [data-rv="wipe"]  { clip-path: inset(0 100% 0 0); }
+      [data-rv].in          { opacity: 1; transform: none; }
+      [data-rv="wipe"].in   { clip-path: inset(0 0 0 0); }
+
+      .mask { display: block; overflow: hidden; padding-bottom: .1em; margin-bottom: -.1em; }
+      .mask > span {
+        display: block;
+        transition: transform 1.15s var(--ease);
+        transition-delay: calc(var(--i, 0) * 110ms + var(--d, 0ms));
+      }
+      .js .mask > span { transform: translateY(115%); }
+      .in .mask > span { transform: none; }
+
+      /* ===== Navbar ===== */
+      #nav { transition: transform .55s var(--ease), background-color .35s, border-color .35s; }
+      #nav.scrolled, #nav.menu-open {
+        background: rgb(var(--base) / .8);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+        border-color: rgb(var(--line));
+      }
+      #nav.nav-hidden { transform: translateY(-110%); }
+
+      .navlink { position: relative; padding: .5rem .8rem; transition: color .3s; }
+      .navlink:hover { color: rgb(var(--fg)); }
+      .navlink::after {
+        content: "";
+        position: absolute;
+        left: .8rem; right: .8rem; bottom: .3rem;
+        height: 1.5px;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: right;
+        transition: transform .45s var(--ease);
+      }
+      .navlink:hover::after { transform: scaleX(1); transform-origin: left; }
+
+      .logo-mark { display: grid; grid-template-columns: repeat(2, 9px); gap: 2px; }
+      .logo-mark i {
+        display: block; width: 9px; height: 9px;
+        background: rgb(var(--fg));
+        transition: transform .6s var(--ease);
+        transition-delay: calc(var(--i) * 90ms + 250ms);
+      }
+      .js .logo-mark i { transform: scale(0); }
+      .logo-mark i:nth-child(4) { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(var(--fg)); }
+      .in .logo-mark i { transform: none; }
+
+      .iconbtn {
+        display: grid; place-items: center;
+        width: 42px; height: 42px;
+        border-radius: 999px;
+        color: rgb(var(--fg));
+        transition: background-color .3s, transform .55s var(--ease);
+      }
+      .iconbtn:hover { background: rgb(var(--fg) / .07); }
+      #themeToggle svg { transition: transform .6s var(--ease); }
+      #themeToggle:hover svg { transform: rotate(-25deg); }
+
+      .burger { position: relative; display: block; width: 20px; height: 10px; }
+      .burger i {
+        position: absolute; left: 0; right: 0;
+        height: 1.5px;
+        background: currentColor;
+        transition: transform .45s var(--ease), top .45s var(--ease);
+      }
+      .burger i:first-child { top: 0; }
+      .burger i:last-child { top: 8px; }
+      .open .burger i:first-child { top: 4px; transform: rotate(45deg); }
+      .open .burger i:last-child { top: 4px; transform: rotate(-45deg); }
+
+      .mmenu { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--ease); }
+      .mmenu.open { grid-template-rows: 1fr; }
+      .mmenu > div { overflow: hidden; }
+      .mmenu a {
+        opacity: 0;
+        transform: translateX(-24px);
+        transition: transform .45s var(--ease), opacity .45s var(--ease);
+        transition-delay: calc(var(--i, 0) * 60ms + 80ms);
+      }
+      .mmenu.open a { opacity: 1; transform: none; }
+
+      #progress {
+        position: fixed; top: 0; left: 0; right: 0;
+        height: 2px;
+        z-index: 70;
+        background: rgb(var(--fg));
+        transform: scaleX(0);
+        transform-origin: left;
+      }
+
+      /* ===== Tombol ===== */
+      .btn {
+        position: relative; overflow: hidden; isolation: isolate;
+        display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+        height: 3.1rem;
+        padding: 0 1.5rem;
+        border-radius: 999px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        transition: box-shadow .35s, background-color .35s, color .35s, border-color .35s, transform .55s var(--ease);
+      }
+      .btn.magnet, .iconbtn.magnet { transition-duration: .35s, .35s, .35s, .35s, .15s; }
+      .btn-solid { background: rgb(var(--fg)); color: rgb(var(--base)); }
+      .btn-solid:hover { box-shadow: 0 0 0 5px rgb(var(--fg) / .12); }
+      .btn-line { border: 1px solid rgb(var(--fg) / .2); color: rgb(var(--fg)); }
+      .btn-line:hover { border-color: rgb(var(--fg)); }
+      .btn-sm { height: 2.5rem; padding: 0 1.15rem; font-size: .9rem; }
+
+      .roll { display: inline-grid; overflow: hidden; height: 1.5em; line-height: 1.5em; }
+      .roll > span { grid-area: 1 / 1; transition: transform .55s var(--ease); }
+      .roll > span + span { transform: translateY(100%); }
+      .btn:hover .roll > span:first-child { transform: translateY(-100%); }
+      .btn:hover .roll > span + span { transform: none; }
+
+      .ripple {
+        position: absolute; border-radius: 50%; pointer-events: none; z-index: -1;
+        background: currentColor; opacity: .22;
+        transform: scale(0);
+        animation: rip .75s var(--ease) forwards;
+      }
+      @keyframes rip { to { transform: scale(1); opacity: 0; } }
+
+      .link-u {
+        background:
+          linear-gradient(currentColor, currentColor) 0 100% / 0% 1px no-repeat,
+          linear-gradient(rgb(var(--fg) / .2), rgb(var(--fg) / .2)) 0 100% / 100% 1px no-repeat;
+        padding-bottom: 2px;
+        transition: background-size .5s var(--ease);
+      }
+      .link-u:hover { background-size: 100% 1px, 100% 1px; }
+
+      /* ===== Ticker ===== */
+      .ticker { display: flex; align-items: center; width: max-content; animation: tick 60s linear infinite; }
+      .ticker-wrap:hover .ticker { animation-play-state: paused; }
+      @keyframes tick { to { transform: translateX(-50%); } }
+      .titem {
+        display: inline-flex; align-items: center; gap: 2.25rem;
+        padding-right: 2.25rem;
+        font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+        font-weight: 500;
+        letter-spacing: -0.04em;
+        white-space: nowrap;
+      }
+      .titem::after { content: ""; width: 10px; height: 10px; background: currentColor; }
+      .titem.outline { color: transparent; -webkit-text-stroke: 1px rgb(var(--fg) / .55); }
+      .titem.outline::after { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(var(--fg) / .55); }
+
+      /* ===== Loader intro ===== */
+      #loader { display: none; }
+      .intro #loader {
+        position: fixed; inset: 0; z-index: 95;
+        display: flex; flex-direction: column; justify-content: space-between;
+        padding: clamp(1.25rem, 4vw, 3rem);
+        background: #000; color: #fff;
+        transition: transform 1.05s cubic-bezier(.76,0,.24,1);
+      }
+      .dark.intro #loader { background: #fff; color: #000; }
+      #loader.done { transform: translateY(-100%); }
+      .lock body { overflow: hidden; }
+
+      /* ===== Kursor custom ===== */
+      .cursor, .cursor-dot {
+        position: fixed; top: 0; left: 0; z-index: 90;
+        pointer-events: none; border-radius: 50%;
+        mix-blend-mode: difference;
+        transition: opacity .3s;
+      }
+      .cursor-dot { width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; }
+      .cursor {
+        width: 38px; height: 38px; margin: -19px 0 0 -19px;
+        border: 1px solid #fff;
+        transition: width .4s var(--ease), height .4s var(--ease), margin .4s var(--ease), background-color .4s, opacity .3s;
+      }
+      .cursor.is-hover { width: 76px; height: 76px; margin: -38px 0 0 -38px; background: #fff; }
+      .cursor.is-down { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+      .has-cursor, .has-cursor a, .has-cursor button, .has-cursor label { cursor: none; }
+      .has-cursor input { cursor: text; }
+      @media (hover: none), (pointer: coarse) { .cursor, .cursor-dot { display: none; } }
+
+      /* ===== Hero ===== */
+      .hero-grid {
+        position: absolute; inset: 0; pointer-events: none;
+        background-image: radial-gradient(rgb(var(--fg) / .28) 1px, transparent 1.3px);
+        background-size: 22px 22px;
+        -webkit-mask-image: radial-gradient(380px circle at var(--mx, 72%) var(--my, 42%), #000 0%, transparent 70%);
+                mask-image: radial-gradient(380px circle at var(--mx, 72%) var(--my, 42%), #000 0%, transparent 70%);
+        opacity: 0;
+        animation: fadeIn 1.5s var(--ease) .6s forwards;
+      }
+      @keyframes fadeIn { to { opacity: 1; } }
+
+      .tilt { transition: transform .8s var(--ease); will-change: transform; }
+      .tilt.tilting { transition-duration: .15s; }
+
+      [data-spot] { position: relative; isolation: isolate; }
+      [data-spot]::before {
+        content: "";
+        position: absolute; inset: 0; z-index: -1;
+        border-radius: inherit; pointer-events: none;
+        background: radial-gradient(380px circle at var(--sx, 50%) var(--sy, 50%), var(--spot, rgb(var(--fg) / .07)), transparent 65%);
+        opacity: 0;
+        transition: opacity .45s;
+      }
+      [data-spot]:hover::before { opacity: 1; }
+
+      /* ================= KHUSUS HALAMAN HASIL REKOMENDASI ================= */
+
+      .tag {
+        display: inline-flex; align-items: center;
+        height: 30px; padding: 0 .85rem;
+        border-radius: 999px;
+        border: 1px solid rgb(var(--line));
+        font-size: .85rem; font-weight: 500;
+      }
+
+      /* Baris kriteria */
+      .crit { position: relative; display: grid; gap: .35rem; padding: 1.35rem 0; }
+      @media (min-width: 640px) { .crit { grid-template-columns: 13rem 1fr; gap: 2rem; align-items: baseline; } }
+      .crit::after {
+        content: ""; position: absolute; left: 0; right: 0; bottom: 0;
+        height: 1px; background: rgb(var(--line));
+        transform-origin: left;
+        transition: transform 1.1s var(--ease);
+        transition-delay: calc(var(--i, 0) * 90ms + 250ms);
+      }
+      .js .crit::after { transform: scaleX(0); }
+      .crit.in::after { transform: scaleX(1); }
+
+      /* Sebaran rating */
+      .dist { position: relative; padding: 1.6rem 0; border-top: 1px solid rgb(var(--line)); }
+      .dist-track { height: 6px; border-radius: 999px; background: rgb(var(--fg) / .12); overflow: hidden; }
+      .dist-fill {
+        height: 100%; width: var(--v, 0%);
+        border-radius: 999px;
+        background: rgb(var(--fg));
+        transform-origin: left;
+        transition: transform 1.2s var(--ease);
+        transition-delay: calc(var(--i, 0) * 120ms + 400ms);
+      }
+      .js .dist-fill { transform: scaleX(0); }
+      .in .dist-fill { transform: scaleX(1); }
+
+      /* Grup level */
+      .lv + .lv { margin-top: 5rem; }
+      .lv-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1.25rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgb(var(--line)); }
+      .lv-panel { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .6s var(--ease); }
+      .lv.closed .lv-panel { grid-template-rows: 0fr; }
+      .lv-panel > div { min-height: 0; overflow: hidden; }
+
+      .seg { display: inline-flex; padding: 4px; border-radius: 999px; border: 1px solid rgb(var(--line)); }
+      .seg button {
+        height: 34px; padding: 0 .95rem;
+        border-radius: 999px;
+        font-size: .85rem; font-weight: 500;
+        color: rgb(var(--mut));
+        transition: background-color .35s, color .35s;
+      }
+      .seg button:hover { color: rgb(var(--fg)); }
+      .seg button[aria-pressed="true"] { background: rgb(var(--fg)); color: rgb(var(--base)); }
+
+      .pm {
+        position: relative; flex-shrink: 0;
+        width: 42px; height: 42px; border-radius: 50%;
+        border: 1px solid rgb(var(--line));
+        transition: background-color .45s, color .45s, border-color .45s, transform .7s var(--ease);
+      }
+      .pm::before, .pm::after {
+        content: ""; position: absolute; left: 50%; top: 50%;
+        width: 14px; height: 1.5px;
+        background: currentColor;
+        transform: translate(-50%, -50%);
+        transition: transform .55s var(--ease);
+      }
+      .pm::after { transform: translate(-50%, -50%) rotate(0deg); }
+      .pm:hover { border-color: rgb(var(--fg)); }
+      .closed .pm::after, .pm.is-plus::after { transform: translate(-50%, -50%) rotate(90deg); }
+      .pm.is-active { background: rgb(var(--fg)); color: rgb(var(--base)); border-color: rgb(var(--fg)); transform: rotate(180deg); }
+
+      /* Kartu produk */
+      .prod {
+        display: flex; flex-direction: column;
+        height: 100%;
+        border: 1px solid rgb(var(--line));
+        border-radius: 22px;
+        background: rgb(var(--base));
+        overflow: hidden;
+        transition: border-color .4s;
+      }
+      .prod:hover { border-color: rgb(var(--fg) / .5); }
+      .prod-media { position: relative; }
+      .prod-img {
+        display: grid; place-items: center;
+        aspect-ratio: 4 / 3;
+        background: rgb(var(--surface));
+        overflow: hidden;
+      }
+      .prod-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .9s var(--ease); }
+      .prod:hover .prod-img img { transform: scale(1.06); }
+      .rate {
+        position: absolute; top: 12px; right: 12px;
+        display: inline-flex; align-items: center; gap: .3rem;
+        height: 28px; padding: 0 .7rem;
+        border-radius: 999px;
+        background: rgb(var(--fg)); color: rgb(var(--base));
+        font-size: .8rem; font-weight: 500;
+      }
+      .prod-name { transition: transform .55s var(--ease); }
+      .prod:hover .prod-name { transform: translateX(6px); }
+
+      /* Panel analisis */
+      .acc-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .7s var(--ease); }
+      .acc-panel.open { grid-template-rows: 1fr; }
+      .acc-panel > div { min-height: 0; overflow: hidden; }
+      .chart-card { border: 1px solid rgb(var(--line)); border-radius: 22px; background: rgb(var(--base)); padding: 1.5rem; }
+
+      /* Toast */
+      .toast {
+        position: fixed; left: 50%; bottom: 24px; z-index: 80;
+        display: inline-flex; align-items: center; gap: .65rem;
+        height: 48px; padding: 0 1.25rem;
+        border-radius: 999px;
+        background: rgb(var(--fg)); color: rgb(var(--base));
+        font-weight: 500; font-size: .95rem;
+        box-shadow: 0 20px 40px -18px rgba(0,0,0,.45);
+        transform: translate(-50%, 140%);
+        transition: transform .6s var(--ease);
+      }
+      .toast.show { transform: translate(-50%, 0); }
+
+      .wordmark { color: transparent; -webkit-text-stroke: 1px rgb(var(--fg) / .28); }
+
+      /* Tombol kembali ke atas */
+      #toTop {
+        position: fixed; right: 20px; bottom: 20px; z-index: 55;
+        display: grid; place-items: center;
+        width: 54px; height: 54px; border-radius: 50%;
+        background: rgb(var(--base)); color: rgb(var(--fg));
+        box-shadow: 0 10px 30px -12px rgba(0,0,0,.35);
+        opacity: 0; transform: translateY(120%) scale(.8);
+        pointer-events: none;
+        transition: opacity .5s var(--ease), transform .6s var(--ease);
+      }
+      #toTop.show { opacity: 1; transform: none; pointer-events: auto; }
+      #toTop .ring-svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+      #toTop .ring-svg circle { fill: none; stroke-width: 1.5; }
+      #toTop .ring-bg { stroke: rgb(var(--line)); }
+      #toTop .ring-fg { stroke: rgb(var(--fg)); stroke-dasharray: 145; stroke-dashoffset: 145; }
+      #toTop .arrow { transition: transform .45s var(--ease); }
+      #toTop:hover .arrow { transform: translateY(-3px); }
+
+      [data-parallax], [data-hscroll], .ticker-wrap { will-change: transform; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
+        [data-rv], .mask > span, .logo-mark i, .dist-fill, .crit::after {
+          opacity: 1 !important; transform: none !important; clip-path: none !important;
+        }
+        .hero-grid { opacity: .6 !important; }
+      }
+    </style>
+  </head>
+
+  <body class="font-sans">
+    <div id="progress" aria-hidden="true"></div>
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-full focus:bg-fg focus:px-5 focus:py-3 focus:text-canvas">Lewati ke konten</a>
+
+    <button id="toTop" type="button" aria-label="Kembali ke atas">
+      <svg class="ring-svg" viewBox="0 0 54 54" aria-hidden="true"><circle class="ring-bg" cx="27" cy="27" r="23" /><circle class="ring-fg" cx="27" cy="27" r="23" /></svg>
+      <svg class="arrow h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+    </button>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">
+      <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+      <span data-toast-text>Selesai</span>
+    </div>
+
+    <!-- ================= NAVBAR ================= -->
+    <header id="nav" class="fixed inset-x-0 top-0 z-50 border-b border-transparent">
+      <div data-rv="down" class="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-5 sm:px-8">
+        <a href="/" class="flex items-center gap-2.5" aria-label="ByteBudget, ke beranda">
+          <span class="logo-mark" aria-hidden="true">
+            <i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i>
+          </span>
+          <span class="text-[19px] font-semibold tracking-[-0.04em]" data-scramble>ByteBudget</span>
+        </a>
+
+        {% if json_recommendations %}
+        <nav class="hidden items-center text-[14.5px] text-mut md:flex" aria-label="Navigasi hasil">
+          <a class="navlink" href="#kriteria">Kriteria</a>
+          <a class="navlink" href="#sebaran">Sebaran</a>
+          <a class="navlink" href="#hasil">Produk</a>
+          <a class="navlink" href="#analisis">Analisis</a>
+        </nav>
+        {% endif %}
+
+        <div class="flex items-center gap-1.5">
+          <button id="themeToggle" type="button" class="iconbtn" aria-label="Ganti tema">
+            <svg id="sunIcon" class="hidden h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+            <svg id="moonIcon" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 0 1 8.646 3.646 9.003 9.003 0 0 0 12 21a9.003 9.003 0 0 0 8.354-5.646z" /></svg>
+          </button>
+          <a href="{{ form_url }}" class="btn btn-solid hidden !h-10 !px-5 text-sm sm:inline-flex">
+            <span class="roll"><span>Ubah kriteria</span><span aria-hidden="true">Ubah kriteria</span></span>
+          </a>
+          <button id="mobileMenuBtn" type="button" class="iconbtn md:hidden" aria-expanded="false" aria-controls="mobileMenu" aria-label="Buka menu">
+            <span class="burger"><i></i><i></i></span>
+          </button>
+        </div>
+      </div>
+
+      <div id="mobileMenu" class="mmenu md:hidden">
+        <div>
+          <div class="grid gap-1 px-5 pb-6 pt-1 text-[1.75rem] font-medium tracking-[-0.04em]">
+            {% if json_recommendations %}
+              <a class="py-2" href="#kriteria">Kriteria</a>
+              <a class="py-2" href="#sebaran">Sebaran</a>
+              <a class="py-2" href="#hasil">Produk</a>
+              <a class="py-2" href="#analisis">Analisis</a>
+            {% endif %}
+            <a class="py-2" href="{{ form_url }}">Ubah kriteria</a>
+            <a class="py-2 text-mut" href="/">Kembali ke beranda</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+
+      <!-- ================= HERO ================= -->
+      <section class="relative overflow-hidden pb-20 pt-[124px] sm:pb-28 sm:pt-[156px]">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="relative mx-auto grid max-w-6xl items-center gap-16 px-5 sm:px-8 {% if json_recommendations %}lg:grid-cols-[1.05fr_.95fr]{% endif %}">
+          <div data-parallax="-0.1">
+            <p data-rv="left" class="mb-8 inline-flex items-center gap-2.5 rounded-full border border-line px-3.5 py-1.5 text-sm text-mut">
+              <span class="h-2 w-2 bg-fg"></span>
+              {% if product_type == 'pc' %}Komponen PC{% elif product_type == 'laptop' %}Laptop{% else %}Hasil rekomendasi{% endif %}
+            </p>
+
+            {% if json_recommendations %}
+              <h1 data-rv="lines" class="h1">
+                <span class="mask" style="--i:0"><span>Rekomendasi</span></span>
+                <span class="mask" style="--i:1"><span>{% if product_type == 'pc' %}komponen PC.{% elif product_type == 'laptop' %}laptop untukmu.{% else %}untukmu.{% endif %}</span></span>
+              </h1>
+              <p data-rv="up" style="--d:380ms" class="lead mt-8 max-w-[32rem]">
+                Disusun dari kebutuhan dan budget yang kamu masukkan, lalu dikelompokkan berdasarkan rating Tokopedia.
+              </p>
+              <div data-rv="up" style="--d:520ms" class="mt-10 flex flex-wrap items-center gap-3">
+                <a href="#hasil" class="btn btn-solid">
+                  <span class="roll"><span>Lihat produk</span><span aria-hidden="true">Lihat produk</span></span>
+                </a>
+                <a href="{{ form_url }}" class="btn btn-line">
+                  <span class="roll"><span>Ubah kriteria</span><span aria-hidden="true">Ubah kriteria</span></span>
+                </a>
+              </div>
+            {% else %}
+              <h1 data-rv="lines" class="h1 max-w-4xl">
+                <span class="mask" style="--i:0"><span>Belum ada produk</span></span>
+                <span class="mask" style="--i:1"><span>yang cocok.</span></span>
+              </h1>
+              <p data-rv="up" style="--d:380ms" class="lead mt-8 max-w-[32rem]">
+                Coba naikkan budget, ganti kegunaan utama, atau kurangi fitur tambahan, lalu cari lagi.
+              </p>
+              <div data-rv="up" style="--d:520ms" class="mt-10 flex flex-wrap items-center gap-3">
+                <a href="{{ form_url }}" class="btn btn-solid">
+                  <span class="roll"><span>Ubah kriteria</span><span aria-hidden="true">Ubah kriteria</span></span>
+                </a>
+                <a href="/" class="btn btn-line">
+                  <span class="roll"><span>Kembali ke beranda</span><span aria-hidden="true">Kembali ke beranda</span></span>
+                </a>
+              </div>
+            {% endif %}
+          </div>
+
+          {% if json_recommendations %}
+          <!-- Kartu ringkasan + export -->
+          <div data-parallax="0.05">
+            <div class="tilt" data-tilt>
+              <figure data-rv="right" data-spot style="--d:180ms" class="rounded-[22px] border border-line bg-canvas p-6 shadow-[0_50px_80px_-50px_rgba(0,0,0,.35)] sm:p-8">
+                <div class="grid grid-cols-2 gap-6">
+                  <div>
+                    <p class="text-sm text-mut">Produk ditemukan</p>
+                    <p class="mt-1 text-[2.4rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{{ json_recommendations|length }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-mut">Data diambil</p>
+                    <p class="mt-1 text-lg font-semibold leading-snug tracking-[-0.03em]" id="scraping-timestamp">{{ waktu_scraping|default:"2 Februari 2026" }}</p>
+                  </div>
+                </div>
+
+                <div class="mt-7 border-t border-line pt-5">
+                  <p class="text-sm text-mut">Budget</p>
+                  {% if product_type == 'pc' %}
+                    <p class="mt-1 text-xl font-semibold tracking-[-0.03em] tabular-nums">{% if min_budget and max_budget %}Rp {{ min_budget|intcomma }} – Rp {{ max_budget|intcomma }}{% else %}Tidak diisi{% endif %}</p>
+                  {% elif product_type == 'laptop' %}
+                    <p class="mt-1 text-xl font-semibold tracking-[-0.03em] tabular-nums">{% if budget %}Rp {{ budget|intcomma }}{% else %}Tidak diisi{% endif %}</p>
+                    {% if budget %}<p class="mt-1 text-sm text-mut tabular-nums">Dicari di rentang Rp {{ budget_range_min|intcomma }} – Rp {{ budget_range_max|intcomma }}</p>{% endif %}
+                  {% else %}
+                    <p class="mt-1 text-xl font-semibold tracking-[-0.03em]">{{ budget|default:"Tidak diisi" }}</p>
+                  {% endif %}
+                </div>
+
+                <button type="button" onclick="downloadExcel()" class="btn btn-solid mt-7 w-full">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" /></svg>
+                  <span class="roll"><span>Unduh Excel (.xlsx)</span><span aria-hidden="true">Unduh Excel (.xlsx)</span></span>
+                </button>
+                <p class="mt-3 text-sm leading-relaxed text-mut">Berisi nama produk, harga, rating, toko, dan jumlah ulasan.</p>
+              </figure>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      {% if json_recommendations %}
+      <!-- ================= TICKER ================= -->
+      <section aria-label="Sebagian produk yang direkomendasikan" class="inv overflow-hidden py-8">
+        <div class="ticker-wrap">
+          <div class="ticker">
+            {% for product in json_recommendations|slice:":8" %}<span class="titem{% if forloop.counter|divisibleby:2 %} outline{% endif %}">{{ product.name|truncatechars:36 }}</span>{% endfor %}
+            {% for product in json_recommendations|slice:":8" %}<span class="titem{% if forloop.counter|divisibleby:2 %} outline{% endif %}" aria-hidden="true">{{ product.name|truncatechars:36 }}</span>{% endfor %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- ================= KRITERIA ================= -->
+      <section id="kriteria" class="scroll-mt-16 py-24 sm:py-32">
+        <div class="mx-auto grid max-w-6xl gap-14 px-5 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:gap-20">
+          <h2 data-rv="lines" class="h2">
+            <span class="mask"><span>Yang kamu</span></span>
+            <span class="mask" style="--i:1"><span>cari.</span></span>
+          </h2>
+
+          <div class="border-t border-line text-[17px]">
+            {% if product_type == 'pc' %}
+              <div class="crit" data-rv="up" style="--i:0">
+                <p class="text-mut">Rentang budget</p>
+                <p class="font-medium tabular-nums">{% if min_budget and max_budget %}Rp {{ min_budget|intcomma }} – Rp {{ max_budget|intcomma }}{% else %}<span class="text-mut">Tidak diisi</span>{% endif %}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:1">
+                <p class="text-mut">Penggunaan</p>
+                <p class="font-medium">{{ usage|default:"Tidak dipilih"|title }}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:2">
+                <p class="text-mut">Komponen</p>
+                <div class="flex flex-wrap gap-2">
+                  {% for c in komponen %}<span class="tag">{{ c }}</span>{% empty %}<span class="text-mut">Semua komponen</span>{% endfor %}
+                </div>
+              </div>
+
+            {% elif product_type == 'laptop' %}
+              <div class="crit" data-rv="up" style="--i:0">
+                <p class="text-mut">Budget</p>
+                <p class="font-medium tabular-nums">
+                  {% if budget %}Rp {{ budget|intcomma }}<span class="ml-2 text-sm font-normal text-mut">rentang Rp {{ budget_range_min|intcomma }} – Rp {{ budget_range_max|intcomma }}</span>{% else %}<span class="text-mut">Tidak diisi</span>{% endif %}
+                </p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:1">
+                <p class="text-mut">Kegunaan utama</p>
+                <p class="font-medium">{{ usage|default:"Tidak dipilih"|title }}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:2">
+                <p class="text-mut">Kebutuhan spesifik</p>
+                <p class="font-medium">{% if custom_usage %}{{ custom_usage }}{% else %}<span class="font-normal text-mut">Tidak ada</span>{% endif %}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:3">
+                <p class="text-mut">Fitur tambahan</p>
+                <div class="flex flex-wrap gap-2">
+                  {% for c in komponen %}<span class="tag">{{ c }}</span>{% empty %}<span class="text-mut">Tidak ada</span>{% endfor %}
+                </div>
+              </div>
+
+            {% else %}
+              <div class="crit" data-rv="up" style="--i:0">
+                <p class="text-mut">Budget</p>
+                <p class="font-medium">{{ budget|default:"Tidak diisi" }}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:1">
+                <p class="text-mut">Kegunaan</p>
+                <p class="font-medium">{{ usage|default:"Tidak dipilih"|title }}</p>
+              </div>
+              <div class="crit" data-rv="up" style="--i:2">
+                <p class="text-mut">Komponen</p>
+                <div class="flex flex-wrap gap-2">
+                  {% for c in komponen %}<span class="tag">{{ c }}</span>{% empty %}<span class="text-mut">Tidak ada komponen dipilih</span>{% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      {% if json_recommendations %}
+      <!-- ================= SEBARAN RATING (hitam) ================= -->
+      <section id="sebaran" data-expand class="inv scroll-mt-16 py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div class="grid gap-6 lg:grid-cols-2 lg:items-end">
+            <h2 data-rv="lines" class="h2">
+              <span class="mask"><span>Sebaran rating</span></span>
+              <span class="mask" style="--i:1"><span>{{ json_recommendations|length }} produk.</span></span>
+            </h2>
+            <p data-rv="right" class="lead max-w-md lg:justify-self-end">
+              Produk dikelompokkan berdasarkan rating di Tokopedia, dari yang paling disukai pembeli.
+            </p>
+          </div>
+
+          <div class="mt-16 grid gap-x-10 md:grid-cols-2" data-stagger>
+            <div class="dist" data-rv="up" style="--i:0">
+              <div class="flex items-end justify-between gap-4">
+                <div>
+                  <p class="text-xl font-semibold tracking-[-0.03em]">Paling direkomendasikan</p>
+                  <p class="mt-1 text-sm text-mut">Rating 4,5 ke atas</p>
+                </div>
+                <p class="text-[2.6rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{{ high_level_products|length }}</p>
+              </div>
+              <div class="dist-track mt-5"><div class="dist-fill" style="--i:0; --v:{% widthratio high_level_products|length json_recommendations|length 100 %}%"></div></div>
+            </div>
+            <div class="dist" data-rv="up" style="--i:1">
+              <div class="flex items-end justify-between gap-4">
+                <div>
+                  <p class="text-xl font-semibold tracking-[-0.03em]">Pilihan menengah</p>
+                  <p class="mt-1 text-sm text-mut">Rating 4,0 sampai 4,4</p>
+                </div>
+                <p class="text-[2.6rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{{ medium_level_products|length }}</p>
+              </div>
+              <div class="dist-track mt-5"><div class="dist-fill" style="--i:1; --v:{% widthratio medium_level_products|length json_recommendations|length 100 %}%"></div></div>
+            </div>
+            <div class="dist" data-rv="up" style="--i:2">
+              <div class="flex items-end justify-between gap-4">
+                <div>
+                  <p class="text-xl font-semibold tracking-[-0.03em]">Normal</p>
+                  <p class="mt-1 text-sm text-mut">Rating 3,0 sampai 3,9</p>
+                </div>
+                <p class="text-[2.6rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{{ recommended_products|length }}</p>
+              </div>
+              <div class="dist-track mt-5"><div class="dist-fill" style="--i:2; --v:{% widthratio recommended_products|length json_recommendations|length 100 %}%"></div></div>
+            </div>
+            <div class="dist" data-rv="up" style="--i:3">
+              <div class="flex items-end justify-between gap-4">
+                <div>
+                  <p class="text-xl font-semibold tracking-[-0.03em]">Rating rendah</p>
+                  <p class="mt-1 text-sm text-mut">Rating di bawah 3,0</p>
+                </div>
+                <p class="text-[2.6rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{{ low_level_products|length }}</p>
+              </div>
+              <div class="dist-track mt-5"><div class="dist-fill" style="--i:3; --v:{% widthratio low_level_products|length json_recommendations|length 100 %}%"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if high_level_products or medium_level_products or recommended_products or low_level_products %}
+      <!-- ================= DAFTAR PRODUK ================= -->
+      <section id="hasil" class="scroll-mt-16 py-24 sm:py-36">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <h2 data-rv="lines" class="h2 mb-16">
+            <span class="mask"><span>Pilih yang paling</span></span>
+            <span class="mask" style="--i:1"><span>pas buatmu.</span></span>
+          </h2>
+
+          {% if high_level_products %}
+          <div class="lv" data-level="high">
+            <div class="lv-head" data-rv="up">
+              <div>
+                <p class="text-sm text-mut">Rating 4,5 ke atas, {{ high_level_products|length }} produk</p>
+                <h3 class="mt-1 text-[1.9rem] font-semibold leading-tight tracking-[-0.04em]">Paling direkomendasikan</h3>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="seg" role="group" aria-label="Urutkan produk">
+                  <button type="button" data-sort="rating" aria-pressed="false">Rating</button>
+                  <button type="button" data-sort="price_high" aria-pressed="false">Termahal</button>
+                  <button type="button" data-sort="price_low" aria-pressed="false">Termurah</button>
+                </div>
+                <button type="button" class="pm" data-toggle-level aria-expanded="true" aria-label="Sembunyikan grup ini"></button>
+              </div>
+            </div>
+            <div class="lv-panel"><div>
+              <div class="grid gap-5 pt-8 sm:grid-cols-2 lg:grid-cols-3" data-grid>
+                {% for product in high_level_products %}{% cycle '0' '1' '2' as ci silent %}
+                  {% include "partials/kartu_produk.html" with product=product i=ci %}
+                {% endfor %}
+              </div>
+            </div></div>
+          </div>
+          {% endif %}
+
+          {% if medium_level_products %}
+          <div class="lv" data-level="medium">
+            <div class="lv-head" data-rv="up">
+              <div>
+                <p class="text-sm text-mut">Rating 4,0 sampai 4,4, {{ medium_level_products|length }} produk</p>
+                <h3 class="mt-1 text-[1.9rem] font-semibold leading-tight tracking-[-0.04em]">Pilihan menengah</h3>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="seg" role="group" aria-label="Urutkan produk">
+                  <button type="button" data-sort="rating" aria-pressed="false">Rating</button>
+                  <button type="button" data-sort="price_high" aria-pressed="false">Termahal</button>
+                  <button type="button" data-sort="price_low" aria-pressed="false">Termurah</button>
+                </div>
+                <button type="button" class="pm" data-toggle-level aria-expanded="true" aria-label="Sembunyikan grup ini"></button>
+              </div>
+            </div>
+            <div class="lv-panel"><div>
+              <div class="grid gap-5 pt-8 sm:grid-cols-2 lg:grid-cols-3" data-grid>
+                {% for product in medium_level_products %}{% cycle '0' '1' '2' as ci silent %}
+                  {% include "partials/kartu_produk.html" with product=product i=ci %}
+                {% endfor %}
+              </div>
+            </div></div>
+          </div>
+          {% endif %}
+
+          {% if recommended_products %}
+          <div class="lv" data-level="recommended">
+            <div class="lv-head" data-rv="up">
+              <div>
+                <p class="text-sm text-mut">Rating 3,0 sampai 3,9, {{ recommended_products|length }} produk</p>
+                <h3 class="mt-1 text-[1.9rem] font-semibold leading-tight tracking-[-0.04em]">Normal</h3>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="seg" role="group" aria-label="Urutkan produk">
+                  <button type="button" data-sort="rating" aria-pressed="false">Rating</button>
+                  <button type="button" data-sort="price_high" aria-pressed="false">Termahal</button>
+                  <button type="button" data-sort="price_low" aria-pressed="false">Termurah</button>
+                </div>
+                <button type="button" class="pm" data-toggle-level aria-expanded="true" aria-label="Sembunyikan grup ini"></button>
+              </div>
+            </div>
+            <div class="lv-panel"><div>
+              <div class="grid gap-5 pt-8 sm:grid-cols-2 lg:grid-cols-3" data-grid>
+                {% for product in recommended_products %}{% cycle '0' '1' '2' as ci silent %}
+                  {% include "partials/kartu_produk.html" with product=product i=ci %}
+                {% endfor %}
+              </div>
+            </div></div>
+          </div>
+          {% endif %}
+
+          {% if low_level_products %}
+          <div class="lv closed" data-level="low">
+            <div class="lv-head" data-rv="up">
+              <div>
+                <p class="text-sm text-mut">Rating di bawah 3,0, {{ low_level_products|length }} produk</p>
+                <h3 class="mt-1 text-[1.9rem] font-semibold leading-tight tracking-[-0.04em]">Rating rendah</h3>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="seg" role="group" aria-label="Urutkan produk">
+                  <button type="button" data-sort="rating" aria-pressed="false">Rating</button>
+                  <button type="button" data-sort="price_high" aria-pressed="false">Termahal</button>
+                  <button type="button" data-sort="price_low" aria-pressed="false">Termurah</button>
+                </div>
+                <button type="button" class="pm" data-toggle-level aria-expanded="false" aria-label="Tampilkan grup ini"></button>
+              </div>
+            </div>
+            <div class="lv-panel"><div>
+              <div class="grid gap-5 pt-8 sm:grid-cols-2 lg:grid-cols-3" data-grid>
+                {% for product in low_level_products %}{% cycle '0' '1' '2' as ci silent %}
+                  {% include "partials/kartu_produk.html" with product=product i=ci %}
+                {% endfor %}
+              </div>
+            </div></div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if json_recommendations %}
+      <!-- ================= ANALISIS ================= -->
+      <section id="analisis" class="scroll-mt-16 border-t border-line bg-surface py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div class="grid gap-6 lg:grid-cols-2 lg:items-end">
+            <h2 data-rv="lines" class="h2">
+              <span class="mask"><span>Cara sistem</span></span>
+              <span class="mask" style="--i:1"><span>membaca produk.</span></span>
+            </h2>
+            <div data-rv="right" class="lg:justify-self-end">
+              <p class="lead max-w-md">Content-based filtering dengan TF-IDF dan cosine similarity, dihitung langsung dari nama produk di hasil ini.</p>
+              <button type="button" id="analytics-toggle-btn" onclick="toggleAnalytics()" aria-expanded="false" aria-controls="analytics-section" class="btn btn-line mt-6">
+                <span class="roll"><span data-analytics-label>Tampilkan analisis</span><span aria-hidden="true" data-analytics-label>Tampilkan analisis</span></span>
+              </button>
+            </div>
+          </div>
+
+          <div id="analytics-section" class="acc-panel">
+            <div>
+              <div class="grid gap-5 pt-14">
+                <div class="chart-card">
+                  <h3 class="text-xl font-semibold tracking-[-0.03em]">15 kata kunci teratas</h3>
+                  <p class="mt-1 text-sm text-mut">Skor TF-IDF tinggi berarti kata itu paling membedakan satu produk dari yang lain.</p>
+                  <div id="tfidf-chart" class="mt-4"></div>
+                </div>
+                <div class="chart-card">
+                  <h3 class="text-xl font-semibold tracking-[-0.03em]">Kemiripan antar produk</h3>
+                  <p class="mt-1 text-sm text-mut">20 produk pertama. Semakin pekat warnanya, semakin mirip namanya.</p>
+                  <div id="similarity-heatmap" class="mt-4"></div>
+                </div>
+              </div>
+
+              <div class="mt-14 grid gap-10 md:grid-cols-2">
+                <div>
+                  <h3 class="text-xl font-semibold tracking-[-0.03em]">TF-IDF</h3>
+                  <p class="mt-3 leading-relaxed text-mut">
+                    TF menghitung seberapa sering sebuah kata muncul di nama produk. IDF memberi bobot lebih ke kata yang jarang muncul di produk lain, dengan rumus log(total dokumen / dokumen yang memuat kata). Skor akhirnya TF × IDF.
+                  </p>
+                </div>
+                <div>
+                  <h3 class="text-xl font-semibold tracking-[-0.03em]">Content-based filtering</h3>
+                  <p class="mt-3 leading-relaxed text-mut">
+                    Kemiripan dua produk diukur dengan cosine similarity, yaitu sudut antara dua vektor kata. Harga dan rating dinormalisasi dengan min-max supaya bisa dibandingkan dalam skala yang sama.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- ================= CTA ================= -->
+      <section class="py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div data-rv="wipe" class="inv relative overflow-hidden rounded-[28px] px-6 py-20 sm:px-16 sm:py-28">
+            <div class="grid items-end gap-10 lg:grid-cols-[1.3fr_.7fr]">
+              <h2 data-rv="lines" class="h2 !text-[clamp(2.3rem,5.4vw,4.4rem)]">
+                <span class="mask" style="--d:300ms"><span>Belum pas?</span></span>
+                <span class="mask" style="--i:1;--d:300ms"><span>Ubah kriterianya.</span></span>
+              </h2>
+              <div data-rv="right" style="--d:500ms" class="lg:justify-self-end">
+                <p class="max-w-xs leading-relaxed text-mut">Ganti budget, kegunaan, atau fitur tambahan untuk melihat rekomendasi lain.</p>
+                <div class="mt-6 flex flex-wrap gap-3">
+                  <a href="{{ form_url }}" class="btn btn-solid">
+                    <span class="roll"><span>Ubah kriteria</span><span aria-hidden="true">Ubah kriteria</span></span>
+                  </a>
+                  <a href="/" class="btn btn-line">
+                    <span class="roll"><span>Kembali ke beranda</span><span aria-hidden="true">Kembali ke beranda</span></span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ================= FOOTER ================= -->
+    <footer data-expand class="inv overflow-hidden pt-20">
+      <div class="mx-auto grid max-w-6xl gap-10 px-5 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div data-rv="up">
+          <p class="text-2xl font-semibold tracking-[-0.04em]">ByteBudget</p>
+          <p class="mt-3 max-w-xs leading-relaxed text-mut">Rekomendasi rakitan PC dan laptop sesuai budget, dengan harga dari Tokopedia.</p>
+        </div>
+        <div data-rv="up" style="--d:100ms">
+          <p class="font-medium">Fitur</p>
+          <ul class="mt-4 space-y-2.5 text-mut">
+            <li><a class="link-u" href="/#pccomponentfinder">Rakit PC</a></li>
+            <li><a class="link-u" href="/#mulaisekarang">Cari laptop</a></li>
+            <li><a class="link-u" href="/#cara-kerja">Cara kerja</a></li>
+          </ul>
+        </div>
+        <div data-rv="up" style="--d:200ms">
+          <p class="font-medium">Lainnya</p>
+          <ul class="mt-4 space-y-2.5 text-mut">
+            <li><a class="link-u" href="/">Beranda</a></li>
+            <li><a class="link-u" href="/#kontak">Kontak</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mx-auto mt-16 flex max-w-6xl items-center justify-between gap-4 border-t border-line px-5 py-6 text-sm text-mut sm:px-8">
+        <p>&copy; {% now "Y" %} ByteBudget</p>
+        <a class="link-u" href="#main">Kembali ke atas</a>
+      </div>
+
+      <div data-hscroll>
+        <p data-rv="lines" aria-hidden="true" class="wordmark -mb-[3vw] select-none text-center text-[18.5vw] font-semibold leading-[.85] tracking-[-0.07em]">
+          <span class="mask"><span>ByteBudget</span></span>
+        </p>
+      </div>
+    </footer>
+
+    <!-- ================= DATA PRODUK (untuk Excel & analisis) ================= -->
+    <script>
+      window.productsData = [
+        {% for product in json_recommendations %}
+        {
+          id: "{{ product.id|default:forloop.counter|escapejs }}",
+          name: "{{ product.name|escapejs }}",
+          price: {{ product.price|default:0|unlocalize }},
+          rating: {{ product.rating|default:0|unlocalize }},
+          shop_name: "{{ product.shop_name|default:'Unknown Shop'|escapejs }}",
+          review_count: {{ product.review_count|default:0|unlocalize }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ];
+    </script>
+
+    <!-- ================= LOGIKA HALAMAN ================= -->
+    <script>
+      /* ---------- Gambar produk: image_url dulu, lalu gambar lokal ---------- */
+      function loadProductImages() {
+        document.querySelectorAll("[data-img]").forEach(function (box) {
+          var url = (box.dataset.imageUrl || "").trim();
+          var local = (box.dataset.localImage || "").trim();
+          var sources = [];
+          if (url) sources.push(url);
+          if (local) sources.push("/local-image/?filename=" + encodeURIComponent(local.split(/[\\/]/).pop()));
+
+          var k = 0;
+          function next() {
+            if (k >= sources.length) {
+              box.innerHTML = '<span class="px-3 text-center text-xs text-mut">Gambar tidak tersedia</span>';
+              return;
+            }
+            var img = new Image();
+            img.alt = box.dataset.name || "Gambar produk";
+            img.decoding = "async";
+            img.onload = function () { box.innerHTML = ""; box.appendChild(img); };
+            img.onerror = function () { next(); };
+            img.src = sources[k++];
+          }
+          next();
+        });
+      }
+
+      /* ---------- Urutkan produk per grup ---------- */
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-sort]");
+        if (!btn) return;
+        var lv = btn.closest(".lv");
+        var grid = lv.querySelector("[data-grid]");
+        var by = btn.dataset.sort;
+        var items = Array.prototype.slice.call(grid.children);
+
+        items.sort(function (a, b) {
+          var pa = parseFloat(a.dataset.price) || 0, pb = parseFloat(b.dataset.price) || 0;
+          var ra = parseFloat(a.dataset.rating) || 0, rb = parseFloat(b.dataset.rating) || 0;
+          if (by === "rating") return rb - ra;
+          if (by === "price_high") return pb - pa;
+          return pa - pb;
+        });
+        items.forEach(function (el) { grid.appendChild(el); });
+
+        lv.querySelectorAll("[data-sort]").forEach(function (b) {
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+        });
+      });
+
+      /* ---------- Buka/tutup grup ---------- */
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-toggle-level]");
+        if (!btn) return;
+        var lv = btn.closest(".lv");
+        var closed = lv.classList.toggle("closed");
+        btn.setAttribute("aria-expanded", closed ? "false" : "true");
+        btn.setAttribute("aria-label", closed ? "Tampilkan grup ini" : "Sembunyikan grup ini");
+        if (!closed) {
+          lv.querySelectorAll("[data-rv]:not(.in)").forEach(function (el) { el.classList.add("in"); });
+        }
+      });
+
+      /* ---------- Toast ---------- */
+      var toastTimer;
+      function showToast(message) {
+        var t = document.getElementById("toast");
+        t.querySelector("[data-toast-text]").textContent = message;
+        t.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2800);
+      }
+
+      /* ---------- Unduh Excel ---------- */
+      function downloadExcel() {
+        var products = window.productsData || [];
+        if (!products.length) { showToast("Tidak ada data untuk diunduh"); return; }
+        if (typeof XLSX === "undefined") { showToast("Library Excel belum termuat, coba lagi"); return; }
+
+        var rows = products.map(function (p, i) {
+          return {
+            No: i + 1,
+            "Nama Produk": p.name,
+            "Harga (Rp)": p.price,
+            Rating: p.rating,
+            "Nama Toko": p.shop_name,
+            "Jumlah Ulasan": p.review_count,
+          };
+        });
+
+        var ws = XLSX.utils.json_to_sheet(rows);
+        ws["!cols"] = [{ wch: 5 }, { wch: 60 }, { wch: 15 }, { wch: 8 }, { wch: 25 }, { wch: 15 }];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data Scraping");
+
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, "0"); };
+        var stamp = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "_" + pad(d.getHours()) + "-" + pad(d.getMinutes());
+        XLSX.writeFile(wb, "Data_Scraping_" + stamp + ".xlsx");
+        showToast("Excel berhasil diunduh");
+      }
+
+      /* ---------- TF-IDF & cosine similarity ---------- */
+      function calculateTFIDF(products) {
+        var docs = products.map(function (p) {
+          return p.name.toLowerCase().split(/\s+/).filter(function (w) { return w.length > 2; });
+        });
+        var df = {};
+        docs.forEach(function (tokens) {
+          Array.from(new Set(tokens)).forEach(function (t) { df[t] = (df[t] || 0) + 1; });
+        });
+        var total = docs.length;
+        var vectors = docs.map(function (tokens) {
+          var tf = {};
+          tokens.forEach(function (t) { tf[t] = (tf[t] || 0) + 1; });
+          var v = {};
+          Object.keys(tf).forEach(function (t) {
+            v[t] = (tf[t] / tokens.length) * Math.log(total / (df[t] || 1));
+          });
+          return v;
+        });
+        return { tfidfVectors: vectors, vocabulary: Object.keys(df) };
+      }
+
+      function cosineSimilarity(a, b, vocab) {
+        var dot = 0, n1 = 0, n2 = 0;
+        vocab.forEach(function (t) {
+          var x = a[t] || 0, y = b[t] || 0;
+          dot += x * y; n1 += x * x; n2 += y * y;
+        });
+        return n1 && n2 ? dot / (Math.sqrt(n1) * Math.sqrt(n2)) : 0;
+      }
+
+      /* ---------- Grafik monokrom (ikut tema terang/gelap) ---------- */
+      function themeColors(el) {
+        var cs = getComputedStyle(el);
+        var rgb = function (name) { return cs.getPropertyValue(name).trim().split(/\s+/).join(","); };
+        var fg = rgb("--fg");
+        return {
+          fg: "rgb(" + fg + ")",
+          fgA: function (a) { return "rgba(" + fg + "," + a + ")"; },
+          mut: "rgb(" + rgb("--mut") + ")",
+          line: "rgb(" + rgb("--line") + ")",
+          base: "rgb(" + rgb("--base") + ")",
+        };
+      }
+
+      function baseLayout(c, height) {
+        return {
+          height: height,
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          font: { family: "Geist, ui-sans-serif, system-ui, sans-serif", color: c.mut, size: 13 },
+          hoverlabel: { bgcolor: c.fg, bordercolor: c.fg, font: { family: "Geist, sans-serif", color: c.base } },
+        };
+      }
+
+      function createTFIDFVisualization(products) {
+        var el = document.getElementById("tfidf-chart");
+        var c = themeColors(el);
+        var r = calculateTFIDF(products);
+        var scores = {};
+        r.vocabulary.forEach(function (t) {
+          var s = r.tfidfVectors.reduce(function (sum, v) { return sum + (v[t] || 0); }, 0);
+          scores[t] = s / r.tfidfVectors.length;
+        });
+        var top = Object.entries(scores).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 15).reverse();
+
+        var layout = baseLayout(c, 480);
+        layout.margin = { l: 110, r: 20, t: 10, b: 50 };
+        layout.xaxis = { title: { text: "Skor TF-IDF" }, gridcolor: c.line, zerolinecolor: c.line };
+        layout.yaxis = { automargin: true, tickfont: { color: c.fg } };
+
+        Plotly.react(el, [{
+          type: "bar",
+          orientation: "h",
+          x: top.map(function (t) { return t[1]; }),
+          y: top.map(function (t) { return t[0]; }),
+          marker: { color: top.map(function (_, i) { return c.fgA(0.25 + (i / top.length) * 0.75); }) },
+          hovertemplate: "<b>%{y}</b><br>Skor: %{x:.4f}<extra></extra>",
+        }], layout, { responsive: true, displayModeBar: false });
+      }
+
+      function createSimilarityHeatmap(products) {
+        var el = document.getElementById("similarity-heatmap");
+        var c = themeColors(el);
+        var r = calculateTFIDF(products);
+        var n = Math.min(products.length, 20);
+        var z = [], labels = [];
+        for (var i = 0; i < n; i++) {
+          var row = [];
+          labels.push(products[i].name.substring(0, 30) + "…");
+          for (var j = 0; j < n; j++) row.push(cosineSimilarity(r.tfidfVectors[i], r.tfidfVectors[j], r.vocabulary));
+          z.push(row);
+        }
+
+        var layout = baseLayout(c, 560);
+        layout.margin = { l: 20, r: 20, t: 10, b: 20 };
+        layout.xaxis = { showticklabels: false, showgrid: false, zeroline: false };
+        layout.yaxis = { showticklabels: false, showgrid: false, zeroline: false, autorange: "reversed" };
+
+        Plotly.react(el, [{
+          type: "heatmap",
+          z: z, x: labels, y: labels,
+          colorscale: [[0, c.fgA(0.04)], [0.5, c.fgA(0.45)], [1, c.fg]],
+          hovertemplate: "%{y}<br>%{x}<br>Kemiripan: %{z:.3f}<extra></extra>",
+          colorbar: { outlinewidth: 0, tickfont: { color: c.mut }, thickness: 10 },
+        }], layout, { responsive: true, displayModeBar: false });
+      }
+
+      var analyticsRendered = false;
+      function renderAnalytics() {
+        var products = window.productsData || [];
+        if (!products.length || typeof Plotly === "undefined") return;
+        createTFIDFVisualization(products);
+        createSimilarityHeatmap(products);
+        analyticsRendered = true;
+      }
+
+      window.toggleAnalytics = function () {
+        var panel = document.getElementById("analytics-section");
+        var btn = document.getElementById("analytics-toggle-btn");
+        var open = panel.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.querySelectorAll("[data-analytics-label]").forEach(function (s) {
+          s.textContent = open ? "Sembunyikan analisis" : "Tampilkan analisis";
+        });
+        if (open) setTimeout(renderAnalytics, 120);
+      };
+
+      // Gambar ulang grafik saat tema diganti
+      new MutationObserver(function () {
+        if (analyticsRendered) renderAnalytics();
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+      document.addEventListener("DOMContentLoaded", loadProductImages);
+
+      // Pengaman: munculkan elemen di layar yang belum ter-reveal
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          document.querySelectorAll("[data-rv]:not(.in)").forEach(function (el) {
+            if (el.getBoundingClientRect().top < innerHeight) el.classList.add("in");
+          });
+        }, 2500);
+      });
+    </script>
+
+    <!-- Interaksi & animasi (file yang sama dengan beranda dan panduan) -->
+    <script src="{% static 'script.js' %}?v=3" defer></script>
+  </body>
+</html>

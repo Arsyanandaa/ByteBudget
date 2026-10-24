@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAM - ByteBudget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #3d0063 100%, #ffffff 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #f1c40f;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            min-width: 150px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a {
+            color: #333;
+            padding: 0.5rem 1rem;
+            display: block;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .filter-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-title {
+            color: white;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            color: white;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .budget-range {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .budget-range input {
+            flex: 1;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .product-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #ffffff, #ffffff);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .product-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-brand {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .product-specs {
+            margin-bottom: 1.5rem;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .spec-label {
+            color: #666;
+        }
+
+        .spec-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #8e44ad;
+            margin-bottom: 1rem;
+        }
+
+        .product-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stars {
+            color: #f39c12;
+        }
+
+        .rating-text {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .performance-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .performance-high {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .performance-medium {
+            background: #f39c12;
+            color: white;
+        }
+
+        .performance-budget {
+            background: #3498db;
+            color: white;
+        }
+
+        .capacity-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .budget-range {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "partials/navbar.html" %}
+
+    <div class="container">
+        <div class="page-header">
+            <h1>RAM Memory Terbaik</h1>
+            <p>Pilih RAM dengan kapasitas dan kecepatan yang tepat untuk performa maksimal sistem Anda</p>
+        </div>
+
+        <div class="filter-section">
+            <h2 class="filter-title">Filter RAM</h2>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="brand">Brand</label>
+                    <select id="brand">
+                        <option value="">Semua Brand</option>
+                        <option value="corsair">Corsair</option>
+                        <option value="gskill">G.Skill</option>
+                        <option value="kingston">Kingston</option>
+                        <option value="crucial">Crucial</option>
+                        <option value="teamgroup">Team Group</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="capacity">Kapasitas</label>
+                    <select id="capacity">
+                        <option value="">Semua Kapasitas</option>
+                        <option value="8gb">8GB</option>
+                        <option value="16gb">16GB</option>
+                        <option value="32gb">32GB</option>
+                        <option value="64gb">64GB</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="type">Tipe RAM</label>
+                    <select id="type">
+                        <option value="">Semua Tipe</option>
+                        <option value="ddr4">DDR4</option>
+                        <option value="ddr5">DDR5</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="speed">Kecepatan</label>
+                    <select id="speed">
+                        <option value="">Semua Kecepatan</option>
+                        <option value="3200">3200 MHz</option>
+                        <option value="3600">3600 MHz</option>
+                        <option value="4800">4800 MHz</option>
+                        <option value="5600">5600 MHz</option>
+                        <option value="6000">6000+ MHz</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Budget (Rp)</label>
+                    <div class="budget-range">
+                        <input type="number" placeholder="Min" min="0">
+                        <span style="color: white;">-</span>
+                        <input type="number" placeholder="Max" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="products-grid">
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary"
+                    onclick="window.location.href='detail ram/G.Skill Trident Z5 RGB.html'">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/Corsair-Dominator-Platinum-RGB-32GB.jpg"
+                        alt="Corsair Dominator Platinum RGB 32GB" style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">Corsair Dominator Platinum RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">Corsair</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">5600 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL36</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.7 (189 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.799.000</div>
+                <button class="btn-primary"
+                    onclick="window.location.href='detail ram/Corsair Dominator Platinum RGB.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/Corsair Vengeance LPX 16GB.jpg" alt="Corsair Vengeance LPX 16GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-medium">Gaming Ready</div>
+                <h3 class="product-title">Corsair Vengeance LPX <span class="capacity-badge">16GB</span></h3>
+                <p class="product-brand">Corsair</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">16GB (2x8GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR4</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">3600 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL18</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">No</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.6 (542 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 1.899.000</div>
+                <button class="btn-primary" onclick="window.location.href='detail ram/Corsair Vengeance LPX.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/Kingston-Fury-Beast-RGB-16GB.jpg" alt="Kingston Fury Beast RGB 16GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-medium">Gaming Ready</div>
+                <h3 class="product-title">Kingston Fury Beast RGB <span class="capacity-badge">16GB</span></h3>
+                <p class="product-brand">Kingston</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">16GB (2x8GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR4</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">3200 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL16</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.5 (378 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 1.699.000</div>
+                <button class="btn-primary"
+                    onclick="window.location.href='detail ram/Kingston Fury Beast RGB.html'">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/Crucial-Ballistix-16GB.jpg" alt="Crucial Ballistix 16GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-budget">Budget Friendly</div>
+                <h3 class="product-title">Crucial Ballistix <span class="capacity-badge">16GB</span></h3>
+                <p class="product-brand">Crucial</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">16GB (2x8GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR4</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">3200 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL16</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">No</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.4 (423 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 1.399.000</div>
+                <button class="btn-primary" onclick="window.location.href='detail ram/Crucial Ballistix.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/Team Group T-Force Vulcan Z 8GB.jpg" alt="Team Group T-Force Vulcan Z 8GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-budget">Budget Friendly</div>
+                <h3 class="product-title">Team Group T-Force Vulcan Z <span class="capacity-badge">8GB</span></h3>
+                <p class="product-brand">Team Group</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">8GB (2x4GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR4</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">3200 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL16</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">No</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.3 (298 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 899.000</div>
+                <button class="btn-primary"
+                    onclick="window.location.href='detail ram/Team Group T-Force Vulcan Z.html'">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/RAM/G.Skill-Trident-Z5-RGB-32GB.jpg" alt="G.Skill Trident Z5 RGB 32GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">G.Skill Trident Z5 RGB <span class="capacity-badge">32GB</span></h3>
+                <p class="product-brand">G.Skill</p>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">Kapasitas:</span>
+                        <span class="spec-value">32GB (2x16GB)</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Tipe:</span>
+                        <span class="spec-value">DDR5</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Kecepatan:</span>
+                        <span class="spec-value">6000 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Latency:</span>
+                        <span class="spec-value">CL30</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">RGB:</span>
+                        <span class="spec-value">Yes</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 4.299.000</div>
+                <button class="btn-primary">Lihat Detail</button>
+            </div>
+
+
+        </div>
+    </div>
+</body>
+
+</html>

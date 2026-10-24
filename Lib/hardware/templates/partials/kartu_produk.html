@@ -1,0 +1,38 @@
+{% load humanize l10n %}
+<article class="prod" data-rv="up" data-spot style="--i:{{ i|default:0 }}"
+         data-price="{{ product.price|default:0|unlocalize }}"
+         data-rating="{{ product.display_rating|default:product.rating|default:0|unlocalize }}">
+  <div class="prod-media">
+    <div class="prod-img" data-img data-name="{{ product.name }}" data-image-url="{{ product.image_url|default:'' }}" data-local-image="{{ product.local_image|default:'' }}">
+      <span class="px-3 text-center text-xs text-mut">Memuat gambar</span>
+    </div>
+    <span class="rate tabular-nums">
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.2 9.6l6.1-.8z" /></svg>
+      {{ product.display_rating|default:product.rating|default:0|floatformat:1 }}
+    </span>
+  </div>
+
+  <div class="flex flex-1 flex-col p-5">
+    <h3 class="prod-name line-clamp-2 font-semibold leading-snug tracking-[-0.02em]" title="{{ product.name }}">{{ product.name }}</h3>
+
+    <div class="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <p class="text-[1.45rem] font-semibold tracking-[-0.04em] tabular-nums">Rp {{ product.price|intcomma }}</p>
+      {% if product.original_price %}
+        <p class="text-sm text-mut line-through tabular-nums">Rp {{ product.original_price|intcomma }}</p>
+      {% endif %}
+    </div>
+
+    <div class="mt-3 space-y-1 text-sm text-mut">
+      {% if product.shop_name %}<p class="truncate">{{ product.shop_name }}{% if product.shop_city %}, {{ product.shop_city }}{% endif %}</p>{% endif %}
+      {% if product.review_count %}<p>{{ product.review_count|intcomma }} ulasan</p>{% endif %}
+    </div>
+
+    {% if product.url %}
+      <div class="mt-auto pt-5">
+        <a href="{{ product.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-line btn-sm w-full">
+          <span class="roll"><span>Lihat di Tokopedia</span><span aria-hidden="true">Lihat di Tokopedia</span></span>
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</article>

@@ -1,0 +1,40 @@
+\Lib\hardware\venv
+\Lib\hardware\data\images
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django
+*.sqlite3
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Environment
+.env
+
+# VS Code
+.vscode/
+
+# Root virtual environment leftovers
+Scripts/
+pyvenv.cfg
+# Virtual environment & cache
+Lib/site-packages/
+Scripts/
+Include/
+pyvenv.cfg
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+
+# Gambar hasil scraping
+Lib/hardware/data/**/*.jpeg
+Lib/hardware/data/**/*.jpg
+Lib/hardware/data/**/*.png
+Lib/hardware/data/**/*.webp

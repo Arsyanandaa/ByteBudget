@@ -1,0 +1,384 @@
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #000000 0%, #3d0063 100%, #ffffff 100%);
+        min-height: 100vh;
+    }
+
+    .navbar {
+        background: linear-gradient(135deg, #000000 0%, #3d0063 100%, #ffffff 100%);
+        backdrop-filter: blur(10px);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: right;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+
+    }
+
+    .logo {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        margin: 0;
+        margin-right: -3rem;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 2.5rem;
+        align-items: center;
+        margin: 0 auto;
+    }
+
+    .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: color 0.3s;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    .nav-links a:hover {
+        color: #ccc;
+        opacity: 1;
+    }
+
+    .navbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .theme-toggle {
+        background: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+
+    .user-icon {
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+
+
+    .dropdown {
+        position: relative;
+    }
+
+    .dropdown-content {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 8px;
+        padding: 0.5rem 0;
+        min-width: 150px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        display: none;
+    }
+
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+
+    .dropdown-content a {
+        color: #333;
+        padding: 0.5rem 1rem;
+        display: block;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 5rem;
+    }
+
+    .page-header {
+        text-align: center;
+        color: white;
+        margin-bottom: 10rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 5rem;
+    }
+
+    .page-header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    .filter-section {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .filter-title {
+        color: white;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-group label {
+        color: white;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.8rem;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .budget-range {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .budget-range input {
+        flex: 1;
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .product-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+
+        /* tambahan biar footer nempel bawah */
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-footer {
+        margin-top: auto;
+        /* dorong ke bawah */
+    }
+
+    .product-image {
+        width: 100%;
+        height: 200px;
+        background: linear-gradient(45deg, #ffffff, #ffffff);
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .product-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .product-brand {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .product-specs {
+        margin-bottom: 1.5rem;
+    }
+
+    .spec-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .spec-label {
+        color: #666;
+    }
+
+    .spec-value {
+        color: #333;
+        font-weight: 500;
+    }
+
+    .product-price {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #460069;
+        margin-bottom: 1rem;
+    }
+
+    .product-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stars {
+        color: #f39c12;
+    }
+
+    .rating-text {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #000000, #3d0063);
+        color: white;
+        border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        width: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .performance-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    .performance-high {
+        background: #ff0000;
+        color: white;
+    }
+
+    .performance-medium {
+        background: #f39c12;
+        color: white;
+    }
+
+    .performance-budget {
+        background: #3498db;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .navbar {
+            padding: 1rem;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .nav-links {
+            gap: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+        }
+
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .products-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .budget-range {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+<nav class="navbar">
+    <div class="logo">ByteBudget</div>
+    <div class="nav-links">
+        <a href="{% url 'home' %}">Beranda</a>
+        <div class="dropdown">
+            <a href="#" style="display: flex; align-items: center; gap: 0.5rem;">
+                Kategori
+                <span style="font-size: 0.8rem;">▼</span>
+            </a>
+            <div class="dropdown-content">
+                <a href="{% url 'processor' %}">Processor</a>
+                <a href="{% url 'ram' %}">RAM</a>
+                <a href="{% url 'vga' %}">VGA</a>
+                <a href="{% url 'psu' %}">PSU</a>
+                <a href="{% url 'ssd' %}">SSD/HDD</a>
+            </div>
+        </div>
+        <a href="{% url 'home' %}#tentang">Tentang Kami</a>
+        <a href="{% url 'home' %}#kontak">Kontak</a>
+    </div>
+</nav>

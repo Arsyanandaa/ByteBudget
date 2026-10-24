@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VGA - ByteBudget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #3d0063 100%, #ffffff 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #f1c40f;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            min-width: 150px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a {
+            color: #333;
+            padding: 0.5rem 1rem;
+            display: block;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .filter-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-title {
+            color: white;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            color: white;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .budget-range {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .budget-range input {
+            flex: 1;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .product-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 220px;
+            background: linear-gradient(45deg, #ffffff, #ffffff);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .product-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-brand {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .product-specs {
+            margin-bottom: 1.5rem;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .spec-label {
+            color: #666;
+        }
+
+        .spec-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #8e44ad;
+            margin-bottom: 1rem;
+        }
+
+        .product-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stars {
+            color: #f39c12;
+        }
+
+        .rating-text {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .performance-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .performance-flagship {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .performance-high {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .performance-medium {
+            background: #f39c12;
+            color: white;
+        }
+
+        .performance-budget {
+            background: #3498db;
+            color: white;
+        }
+
+        .vram-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .resolution-support {
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #2ecc71;
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .resolution-support h4 {
+            color: #2ecc71;
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .resolution-list {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .budget-range {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "partials/navbar.html" %}
+
+    <div class="container">
+        <div class="page-header">
+            <h1>VGA Card Terbaik</h1>
+            <p>Temukan graphics card yang sempurna untuk gaming, rendering, dan mining dengan performa terdepan</p>
+        </div>
+
+        <div class="filter-section">
+            <h2 class="filter-title">Filter VGA Card</h2>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="brand">Brand</label>
+                    <select id="brand">
+                        <option value="">Semua Brand</option>
+                        <option value="nvidia">NVIDIA</option>
+                        <option value="amd">AMD</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="series">Series</label>
+                    <select id="series">
+                        <option value="">Semua Series</option>
+                        <option value="rtx40">RTX 40 Series</option>
+                        <option value="rtx30">RTX 30 Series</option>
+                        <option value="rx7000">RX 7000 Series</option>
+                        <option value="rx6000">RX 6000 Series</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="vram">VRAM</label>
+                    <select id="vram">
+                        <option value="">Semua VRAM</option>
+                        <option value="8gb">8GB</option>
+                        <option value="12gb">12GB</option>
+                        <option value="16gb">16GB</option>
+                        <option value="24gb">24GB</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="resolution">Target Resolusi</label>
+                    <select id="resolution">
+                        <option value="">Semua Resolusi</option>
+                        <option value="1080p">1080p Gaming</option>
+                        <option value="1440p">1440p Gaming</option>
+                        <option value="4k">4K Gaming</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Budget (Rp)</label>
+                    <div class="budget-range">
+                        <input type="number" placeholder="Min" min="0">
+                        <span style="color: white;">-</span>
+                        <input type="number" placeholder="Max" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="products-grid">
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/NVIDIA-RTX-4090-24GB.jpg" alt="NVIDIA-RTX-4090-24GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-flagship">Flagship</div>
+                <h3 class="product-title">NVIDIA RTX 4090 <span class="vram-badge">24GB</span></h3>
+                <p class="product-brand">NVIDIA</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">4K Ultra | 1440p 144Hz+ | 1080p 240Hz+</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">24GB GDDR6X</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">2230 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">2520 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">CUDA Cores:</span>
+                        <span class="spec-value">16,384</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">450W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.8 (198 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 32.999.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/NVIDIA RTX 4090.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/NVIDIA-RTX-4070-Ti-12GB.jpg" alt="NVIDIA-RTX-4070-Ti-12GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">NVIDIA RTX 4070 Ti <span class="vram-badge">12GB</span></h3>
+                <p class="product-brand">NVIDIA</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">1440p Ultra | 4K High | 1080p 165Hz+</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">12GB GDDR6X</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">2310 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">2610 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">CUDA Cores:</span>
+                        <span class="spec-value">7,680</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">285W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="rating-text">4.7 (324 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 16.999.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/AMD RX 7800 XT.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/AMD-RX-7800-XT-16GB.jpg" alt="AMD-RX-7800-XT-16GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-high">High Performance</div>
+                <h3 class="product-title">AMD RX 7800 XT <span class="vram-badge">16GB</span></h3>
+                <p class="product-brand">AMD</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">1440p Ultra | 4K Medium | 1080p 144Hz+</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">16GB GDDR6</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">1295 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">2430 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Stream Processors:</span>
+                        <span class="spec-value">3,840</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">263W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.6 (267 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 13.999.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/AMD RX 7800 XT.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/NVIDIA-RTX-4060-Ti-8GB.jpg" alt="NVIDIA-RTX-4060-Ti-8GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-medium">1440p Gaming</div>
+                <h3 class="product-title">NVIDIA RTX 4060 Ti <span class="vram-badge">8GB</span></h3>
+                <p class="product-brand">NVIDIA</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">1440p High | 1080p Ultra 120Hz+</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">8GB GDDR6</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">2310 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">2535 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">CUDA Cores:</span>
+                        <span class="spec-value">4,352</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">165W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.5 (412 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 8.999.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/NVIDIA RTX 4060 Ti.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/AMD-RX-6600-XT-8GB.jpg" alt="AMD-RX-6600-XT-8GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-medium">1080p Gaming</div>
+                <h3 class="product-title">AMD RX 6600 XT <span class="vram-badge">8GB</span></h3>
+                <p class="product-brand">AMD</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">1080p Ultra 100Hz+ | 1440p Medium</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">8GB GDDR6</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">1968 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">2589 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Stream Processors:</span>
+                        <span class="spec-value">2,048</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">160W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.4 (356 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 5.999.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/AMD RX 6600 XT.html'">Lihat
+                    Detail</button>
+            </div>
+
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="image/VGA/NVIDIA-GTX-1660-Super-6GB.jpg" alt="NVIDIA-GTX-1660-Super-6GB"
+                        style="max-width: 200px; height: auto;">
+                </div>
+                <div class="performance-badge performance-budget">Budget Gaming</div>
+                <h3 class="product-title">NVIDIA GTX 1660 Super <span class="vram-badge">6GB</span></h3>
+                <p class="product-brand">NVIDIA</p>
+                <div class="resolution-support">
+                    <h4>Optimal Gaming Resolution</h4>
+                    <div class="resolution-list">1080p High 60-75Hz | eSports 144Hz+</div>
+                </div>
+                <div class="product-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">VRAM:</span>
+                        <span class="spec-value">6GB GDDR6</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Base Clock:</span>
+                        <span class="spec-value">1530 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Boost Clock:</span>
+                        <span class="spec-value">1785 MHz</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">CUDA Cores:</span>
+                        <span class="spec-value">1,408</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Power:</span>
+                        <span class="spec-value">125W</span>
+                    </div>
+                </div>
+                <div class="product-rating">
+                    <div class="stars">★★★★☆</div>
+                    <span class="rating-text">4.3 (521 ulasan)</span>
+                </div>
+                <div class="product-price">Rp 3.799.000</div>
+                <button class="btn-primary" onclick="window.location.href='details/vga/NVIDIA GTX 1660 Super.html'">Lihat
+                    Detail</button>
+            </div>
+
+        </div>
+    </div>
+</body>
+
+</html>
