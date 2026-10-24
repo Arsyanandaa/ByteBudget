@@ -13,7 +13,11 @@ from django.shortcuts import render
 import sys
 import urllib.parse
 import threading
-from .rakit_pc import siapkan_data, rekomendasi_rakitan, KEBUTUHAN_DARI_FORM
+from .rakit_pc import (
+    siapkan_data, rekomendasi_rakitan, KEBUTUHAN_DARI_FORM, PROFIL_KEBUTUHAN, BOBOT_SKOR,
+    rincian_tfidf, pembanding_heatmap,
+)
+from .evaluasi import evaluasi_validitas, evaluasi_relevansi, lembar_label, LABEL_PATH, K as K_EVALUASI
 from datetime import datetime
 
 # ===== Data rakitan: dimuat sekali, dipakai berulang =====
@@ -29,6 +33,24 @@ def ambil_data_rakitan():
         _DATA_RAKITAN = siapkan_data()
         print("✅ Data rakitan siap")
     return _DATA_RAKITAN
+
+
+# ===== Evaluasi: dihitung sekali, relevansi dihitung ulang kalau file label berubah =====
+_EVALUASI = {"validitas": None, "relevansi": None, "label_mtime": None}
+
+
+def ambil_evaluasi(data):
+    """Wajib dipanggil di dalam KUNCI_RAKITAN, karena evaluasi ikut menghitung ulang skor produk."""
+    if _EVALUASI["validitas"] is None:
+        print("⏳ Menjalankan evaluasi validitas rakitan...")
+        _EVALUASI["validitas"] = evaluasi_validitas(data)
+        print("✅ Evaluasi validitas selesai")
+
+    mtime = os.path.getmtime(LABEL_PATH) if os.path.exists(LABEL_PATH) else None
+    if mtime != _EVALUASI["label_mtime"]:
+        _EVALUASI["relevansi"] = evaluasi_relevansi(data) if mtime else None
+        _EVALUASI["label_mtime"] = mtime
+    return _EVALUASI
 
 # ===== Bantuan tampilan halaman hasil rakitan =====
 LABEL_KATEGORI = {
@@ -59,6 +81,11 @@ def format_tanggal(iso_teks):
     return f"{t.day} {NAMA_BULAN[t.month - 1]} {t.year}"
 
 
+def angka(x, desimal=4):
+    """0.406612 → '0.4066' (titik desimal, biar sama dengan rumus)."""
+    return f"{x:.{desimal}f}"
+
+
 def siapkan_tampilan(hasil, budget_int):
     """Ubah hasil rakitan jadi data yang siap ditampilkan template."""
     komponen = []
@@ -74,11 +101,180 @@ def siapkan_tampilan(hasil, budget_int):
             "gambar": p.get("image_url") or "",
             "gambar_cadangan": "/local-image/?filename=" + urllib.parse.quote(os.path.basename(lokal)) if lokal else "",
             "link_cari": "https://www.tokopedia.com/search?st=product&q=" + urllib.parse.quote_plus(p["name"][:80]),
+            # Angka disalin sekarang (masih di dalam kunci), karena data produk dipakai bareng semua request
+            "cosine": angka(p["skor_tfidf"]),
+            "skor": angka(p["skor"]),
+            "tfidf_n": angka(p["tfidf_n"]),
+            "harga_n": angka(p["harga_n"]),
+            "ulasan_n": angka(p["ulasan_n"]),
+            "porsi_tfidf": angka(BOBOT_SKOR["tfidf"] * p["tfidf_n"]),
+            "porsi_harga": angka(BOBOT_SKOR["harga"] * p["harga_n"]),
+            "porsi_ulasan": angka(BOBOT_SKOR["ulasan"] * p["ulasan_n"]),
+            "nilai_cosine": p["skor_tfidf"],
+            "nilai_skor": p["skor"],
         })
 
     tanggal = [p["last_updated"] for p in hasil["komponen"].values() if p.get("last_updated")]
     tanggal_data = format_tanggal(min(tanggal)) if tanggal else ""
     return komponen, tanggal_data
+
+def siapkan_rincian(hasil, data, budget_int):
+    """Tabel perhitungan TF-IDF dan heatmap untuk 5 komponen terpilih."""
+    profil = PROFIL_KEBUTUHAN[hasil["kebutuhan"]]
+    tabel_tfidf, heatmap = [], []
+
+    for kategori, terpilih in hasil["komponen"].items():
+        batas_harga = terpilih["price"] + hasil["sisa"]          # harga maksimal pengganti tanpa lewat budget
+        daftar_produk = pembanding_heatmap(kategori, data[kategori], terpilih, batas_harga)
+        r = rincian_tfidf(data[kategori], profil[kategori], daftar_produk)
+        utama = r["baris"][0]                                   # produk terpilih
+
+        baris_kata = []
+        for k in r["kata"]:
+            kata = k["kata"]
+            baris_kata.append({
+                "kata": kata,
+                "tf": utama["tf"][kata],
+                "df": k["df"],
+                "idf": angka(k["idf"]),
+                "wq": angka(k["bobot_profil"]),
+                "wd": angka(utama["bobot"][kata]),
+                "kontribusi": angka(utama["kontribusi"][kata]),
+                "aktif": utama["tf"][kata] > 0,
+            })
+        penyumbang = sorted(
+            ((kata, nilai) for kata, nilai in utama["kontribusi"].items() if nilai > 0),
+            key=lambda x: -x[1],
+        )
+        tabel_tfidf.append({
+            "kategori": kategori,
+            "label": LABEL_KATEGORI[kategori],
+            "nama": terpilih["name"],
+            "teks_nama": utama["teks"],
+            "teks_profil": r["teks_profil"],
+            "n_dokumen": r["n_dokumen"],
+            "kata_tak_dikenal": r["kata_tak_dikenal"],
+            "baris": baris_kata,
+            "n_cocok": sum(1 for b in baris_kata if b["aktif"]),
+            "cosine": angka(utama["cosine"]),
+            "penyumbang": [{"kata": k, "nilai": angka(v)} for k, v in penyumbang[:3]],
+        })
+
+        # Heatmap: warna = bobot TF-IDF relatif terhadap bobot terbesar di tabel kategori ini
+        terbesar = max((b for baris in r["baris"] for b in baris["bobot"].values()), default=0)
+        baris_heatmap = []
+        for baris in r["baris"]:
+            sel = []
+            for k in r["kata"]:
+                nilai = baris["bobot"][k["kata"]]
+                alpha = (0.12 + 0.88 * nilai / terbesar) if nilai > 0 and terbesar else 0
+                sel.append({"nilai": angka(nilai, 2), "alpha": round(alpha, 3), "gelap": alpha > 0.55})
+            baris_heatmap.append({
+                "nama": baris["produk"]["name"],
+                "harga_str": format_rupiah(baris["produk"]["price"]),
+                "terpilih": baris["produk"] is terpilih,
+                "sel": sel,
+                "cosine": angka(baris["cosine"]),
+                "skor": angka(baris["produk"]["skor"]),
+            })
+        heatmap.append({
+            "label": LABEL_KATEGORI[kategori],
+            "kata": [k["kata"] for k in r["kata"]],
+            "baris": baris_heatmap,
+        })
+
+    return tabel_tfidf, heatmap
+
+
+def siapkan_evaluasi(evaluasi):
+    """Format angka evaluasi untuk template."""
+    v = evaluasi["validitas"]
+    ringkasan = dict(v["ringkasan"])
+    ringkasan["cos_terpilih"] = angka(ringkasan["cos_terpilih"])
+    ringkasan["cos_kategori"] = angka(ringkasan["cos_kategori"])
+    ringkasan["lift"] = angka(ringkasan["lift"], 2)
+    ringkasan["durasi_rata"] = angka(ringkasan["durasi_rata"], 2)
+
+    baris = []
+    for b in v["baris"]:
+        baris.append({
+            "kebutuhan": b["kebutuhan"],
+            "budget_str": format_rupiah(b["budget"]),
+            "berhasil": b["berhasil"],
+            "total_str": format_rupiah(b["total"]) if b["berhasil"] else "-",
+            "utilisasi": f"{b['utilisasi'] * 100:.1f}%" if b["berhasil"] else "-",
+            "socket_ok": b.get("socket_ok"),
+            "ddr_ok": b.get("ddr_ok"),
+            "budget_ok": b.get("budget_ok"),
+            "syarat_ok": b.get("syarat_ok"),
+            "dilonggarkan": b.get("dilonggarkan"),
+            "cos_terpilih": angka(b["cos_terpilih"]) if b["berhasil"] else "-",
+        })
+
+    relevansi = None
+    r = evaluasi["relevansi"]
+    if r is not None:
+        relevansi = {
+            "n_kelompok": r["n_kelompok"],
+            "total_kelompok": r["total_kelompok"],
+            "n_label": r["n_label"],
+            "p_sistem": angka(r["p_sistem"]),
+            "p_baseline": angka(r["p_baseline"]),
+            "ndcg_sistem": angka(r["ndcg_sistem"]),
+            "ndcg_baseline": angka(r["ndcg_baseline"]),
+            "per_kelompok": [{
+                "kebutuhan": x["kebutuhan"],
+                "kategori": LABEL_KATEGORI[x["kategori"]],
+                "p_sistem": angka(x["p_sistem"], 2),
+                "p_baseline": angka(x["p_baseline"], 2),
+                "ndcg_sistem": angka(x["ndcg_sistem"], 3),
+                "ndcg_baseline": angka(x["ndcg_baseline"], 3),
+            } for x in r["per_kelompok"]],
+        }
+    return {"ringkasan": ringkasan, "baris": baris, "relevansi": relevansi, "k": K_EVALUASI}
+
+
+def baca_input_rakitan(request):
+    """Ambil budget & kebutuhan dari POST (lalu simpan ke session) atau dari session."""
+    if request.method == "POST":
+        # Form baru pakai "budget"; form lama (min/max) tetap jalan, yang dipakai max_budget
+        budget = request.POST.get("budget") or request.POST.get("max_budget", "")
+        usage = request.POST.get("usage", "")
+        request.session["pc_search_data"] = {"budget": budget, "usage": usage}
+    else:
+        sesi = request.session.get("pc_search_data", {})
+        budget = sesi.get("budget", "")
+        usage = sesi.get("usage", "")
+
+    try:
+        budget_int = int(str(budget).replace(".", "").replace(",", "").strip()) if budget else 0
+    except ValueError:
+        budget_int = 0
+    return budget, budget_int, usage
+
+
+def hitung_rakitan(budget_int, kebutuhan, dengan_evaluasi=True):
+    """
+    Semua perhitungan + penyalinan angka dilakukan di dalam kunci,
+    supaya angka yang tampil tidak ketimpa request lain.
+    """
+    with KUNCI_RAKITAN:
+        data = ambil_data_rakitan()
+        evaluasi = siapkan_evaluasi(ambil_evaluasi(data)) if dengan_evaluasi else None
+        hasil = rekomendasi_rakitan(data, budget_int, kebutuhan)
+        if not hasil:
+            return None
+        komponen, tanggal_data = siapkan_tampilan(hasil, budget_int)
+        tabel_tfidf, heatmap = siapkan_rincian(hasil, data, budget_int)
+    return {
+        "hasil": hasil,
+        "komponen": komponen,
+        "tanggal_data": tanggal_data,
+        "tabel_tfidf": tabel_tfidf,
+        "heatmap": heatmap,
+        "evaluasi": evaluasi,
+    }
+
 
 def home(request):
     return render(request, "index.html")
@@ -245,55 +441,166 @@ def filter_products_by_criteria(products, product_type, min_budget=None, max_bud
 
 def rekomendasi_pc_view(request):
     """Rekomendasi rakitan PC: budget + kebutuhan → CPU, Motherboard, RAM, GPU, Storage."""
-    hasil = None
-    komponen = []
-    tanggal_data = ""
+    budget, budget_int, usage = baca_input_rakitan(request)
+    kebutuhan = KEBUTUHAN_DARI_FORM.get(usage)
     pesan_error = ""
-    budget = ""
-    budget_int = 0
-    usage = ""
-
-    if request.method == "POST":
-        # Form baru pakai "budget"; form lama (min/max) tetap jalan, yang dipakai max_budget
-        budget = request.POST.get("budget") or request.POST.get("max_budget", "")
-        usage = request.POST.get("usage", "")
-        request.session["pc_search_data"] = {"budget": budget, "usage": usage}
-    else:
-        sesi = request.session.get("pc_search_data", {})
-        budget = sesi.get("budget", "")
-        usage = sesi.get("usage", "")
+    rakitan = None
 
     if budget:
-        try:
-            budget_int = int(str(budget).replace(".", "").replace(",", "").strip())
-        except ValueError:
-            budget_int = 0
-
-        kebutuhan = KEBUTUHAN_DARI_FORM.get(usage)
-
         if budget_int < 1_000_000:
             pesan_error = "Budget minimal Rp 1.000.000."
         elif not kebutuhan:
             pesan_error = "Pilih kebutuhan terlebih dahulu."
         else:
-            with KUNCI_RAKITAN:
-                hasil = rekomendasi_rakitan(ambil_data_rakitan(), budget_int, kebutuhan)
-            if hasil:
-                komponen, tanggal_data = siapkan_tampilan(hasil, budget_int)
-            else:
+            rakitan = hitung_rakitan(budget_int, kebutuhan)
+            if not rakitan:
                 pesan_error = "Budget belum cukup untuk merakit PC lengkap. Coba naikkan budget."
 
+    hasil = rakitan["hasil"] if rakitan else None
     return render(request, "hasil_rakitan.html", {
         "hasil": hasil,
-        "komponen": komponen,
+        "komponen": rakitan["komponen"] if rakitan else [],
+        "tabel_tfidf": rakitan["tabel_tfidf"] if rakitan else [],
+        "heatmap": rakitan["heatmap"] if rakitan else [],
+        "evaluasi": rakitan["evaluasi"] if rakitan else None,
+        "bobot": BOBOT_SKOR,
         "pesan_error": pesan_error,
         "usage": usage,
         "budget_str": format_rupiah(budget_int),
         "total_str": format_rupiah(hasil["total"]) if hasil else "",
         "sisa_str": format_rupiah(hasil["sisa"]) if hasil else "",
-        "tanggal_data": tanggal_data,
+        "tanggal_data": rakitan["tanggal_data"] if rakitan else "",
         "page_title": "Rekomendasi Rakitan PC",
     })
+
+
+# ===== Download Excel: data scraping 5 komponen hasil rakitan =====
+
+def gaya_header(ws, baris=1):
+    """Header tebal, latar hitam, tulisan putih (sama dengan gaya situs)."""
+    from openpyxl.styles import Font, PatternFill
+    for sel in ws[baris]:
+        sel.font = Font(bold=True, color="FFFFFF")
+        sel.fill = PatternFill("solid", fgColor="000000")
+
+
+def lebar_kolom(ws, lebar):
+    from openpyxl.utils import get_column_letter
+    for i, w in enumerate(lebar, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def download_rakitan_excel(request):
+    """Buat file .xlsx dari rakitan yang sedang tampil (budget & kebutuhan diambil dari session)."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    budget, budget_int, usage = baca_input_rakitan(request)
+    kebutuhan = KEBUTUHAN_DARI_FORM.get(usage)
+    if budget_int < 1_000_000 or not kebutuhan:
+        return HttpResponse("Belum ada rakitan. Buat rekomendasi dulu dari halaman utama.", status=400)
+
+    rakitan = hitung_rakitan(budget_int, kebutuhan, dengan_evaluasi=False)
+    if not rakitan:
+        return HttpResponse("Budget belum cukup untuk merakit PC lengkap.", status=400)
+    hasil = rakitan["hasil"]
+
+    wb = Workbook()
+
+    # Sheet 1: data scraping 5 komponen
+    ws = wb.active
+    ws.title = "Rakitan"
+    ws.append([
+        "Kategori", "Nama produk", "Harga (Rp)", "Harga asli (Rp)", "Rating", "Jumlah ulasan",
+        "Toko", "Kota", "Socket", "DDR", "Cosine TF-IDF", "Skor akhir", "Link produk",
+        "Link gambar", "Tanggal scraping", "ID produk",
+    ])
+    gaya_header(ws)
+    for item in rakitan["komponen"]:
+        p = item["produk"]
+        ws.append([
+            item["label"], p.get("name"), p.get("price"), p.get("original_price"), p.get("rating"),
+            p.get("review_count"), p.get("shop_name"), p.get("shop_city"), p.get("socket", ""),
+            p.get("ddr", ""), round(item["nilai_cosine"], 4), round(item["nilai_skor"], 4),
+            p.get("url"), p.get("image_url"), p.get("last_updated"), p.get("id"),
+        ])
+    ws.append([])
+    for label, nilai in (("Kebutuhan", usage), ("Budget (Rp)", budget_int),
+                         ("Total (Rp)", hasil["total"]), ("Sisa budget (Rp)", hasil["sisa"])):
+        ws.append([label, nilai])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+    if hasil.get("catatan"):
+        ws.append(["Catatan", hasil["catatan"]])
+    for baris in ws.iter_rows(min_row=2, min_col=3, max_col=4):
+        for sel in baris:
+            sel.number_format = "#,##0"
+    lebar_kolom(ws, [14, 60, 14, 14, 8, 13, 26, 20, 10, 8, 13, 11, 45, 45, 22, 14])
+
+    # Sheet 2: perhitungan TF-IDF komponen terpilih
+    ws2 = wb.create_sheet("Perhitungan TF-IDF")
+    ws2.append(["Kategori", "Kata kunci", "TF produk", "DF", "IDF",
+                "Bobot profil (wq)", "Bobot produk (wd)", "wq × wd"])
+    gaya_header(ws2)
+    for t in rakitan["tabel_tfidf"]:
+        for b in t["baris"]:
+            ws2.append([t["label"], b["kata"], b["tf"], b["df"], float(b["idf"]),
+                        float(b["wq"]), float(b["wd"]), float(b["kontribusi"])])
+        ws2.append([t["label"], "Cosine (jumlah wq × wd)", None, None, None, None, None, float(t["cosine"])])
+        ws2.cell(row=ws2.max_row, column=2).font = Font(bold=True)
+        ws2.cell(row=ws2.max_row, column=8).font = Font(bold=True)
+        ws2.append([])
+    lebar_kolom(ws2, [14, 26, 10, 8, 10, 17, 18, 12])
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    nama_file = f"rakitan_{kebutuhan}_{budget_int}.xlsx"
+    return FileResponse(buffer, as_attachment=True, filename=nama_file)
+
+
+def download_lembar_label(request):
+    """Lembar penilaian relevansi (pooling top-K sistem + baseline) untuk diisi penilai."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    with KUNCI_RAKITAN:
+        baris = lembar_label(ambil_data_rakitan())
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Label"
+    ws.append(["kebutuhan", "kategori", "id", "nama", "harga", "url", "label"])
+    gaya_header(ws)
+    for b in baris:
+        ws.append([b["kebutuhan"], b["kategori"], b["id"], b["nama"], b["harga"], b["url"], None])
+    validasi = DataValidation(type="whole", operator="between", formula1="0", formula2="2", allow_blank=True)
+    ws.add_data_validation(validasi)
+    validasi.add(f"G2:G{ws.max_row}")
+    lebar_kolom(ws, [20, 13, 14, 70, 13, 40, 8])
+
+    petunjuk = wb.create_sheet("Petunjuk")
+    for teks in [
+        "Isi kolom 'label' di sheet Label untuk setiap produk:",
+        "2 = sangat cocok untuk kebutuhan tersebut",
+        "1 = cukup cocok",
+        "0 = tidak cocok",
+        "",
+        "Nilai berdasarkan nama/spesifikasi produk, bukan harga.",
+        "Urutan produk sudah diacak, jadi penilai tidak tahu produk mana pilihan sistem.",
+        "Satu kelompok (kebutuhan × kategori) baru dihitung kalau semua produknya sudah diberi label.",
+        "",
+        "Simpan file ini dengan nama label_relevansi.xlsx di folder data/ (sejajar manage.py),",
+        "lalu muat ulang halaman hasil rakitan. Angka Precision dan nDCG akan muncul otomatis.",
+    ]:
+        petunjuk.append([teks])
+    petunjuk.column_dimensions["A"].width = 95
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return FileResponse(buffer, as_attachment=True, filename="lembar_label_relevansi.xlsx")
 
 def rekomendasi_laptop_view(request):
     """

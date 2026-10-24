@@ -477,6 +477,7 @@ def hitung_skor_akhir(produk_list, profil):
     ulasan_n = min_max([math.log1p(ambil_ulasan(p)) for p in produk_list])
 
     for p, t, h, u in zip(produk_list, tfidf_n, harga_n, ulasan_n):
+        p["tfidf_n"], p["harga_n"], p["ulasan_n"] = t, h, u   # disimpan buat ditampilkan & evaluasi
         p["skor"] = (
             BOBOT_SKOR["tfidf"] * t
             + BOBOT_SKOR["harga"] * h
@@ -616,6 +617,80 @@ def rekomendasi_rakitan(data, budget, kebutuhan):
     if hasil:
         hasil["catatan"] = "Budget belum cukup untuk spesifikasi ideal, beberapa syarat dilonggarkan."
     return hasil
+
+# ===================== LANGKAH 7: RINCIAN TF-IDF (TABEL PERHITUNGAN & HEATMAP) =====================
+
+def rincian_tfidf(daftar_kategori, profil, produk_dipilih):
+    """
+    Bongkar perhitungan TF-IDF beberapa produk terhadap profil kebutuhan.
+    Vectorizer di-fit ke SEMUA produk kategori itu, sama persis dengan skor_tfidf(),
+    jadi angka di sini = angka yang dipakai sistem untuk memilih.
+    """
+    dokumen = [normalisasi_teks(p["name"]) for p in daftar_kategori]
+
+    vectorizer = TfidfVectorizer()
+    matriks = vectorizer.fit_transform(dokumen)
+    analyzer = vectorizer.build_analyzer()          # pemecah kata yang sama dengan sklearn
+    vocab = vectorizer.vocabulary_
+    df = (matriks > 0).sum(axis=0).A1               # document frequency tiap kata
+
+    teks_profil = normalisasi_teks(profil)
+    v_profil = vectorizer.transform([teks_profil])
+    kata_profil = list(dict.fromkeys(t for t in analyzer(teks_profil) if t in vocab))
+
+    def hitung_tf(teks):
+        tf = {}
+        for kata in analyzer(teks):
+            tf[kata] = tf.get(kata, 0) + 1
+        return tf
+
+    tf_profil = hitung_tf(teks_profil)
+    bobot_profil = {k: float(v_profil[0, vocab[k]]) for k in kata_profil}
+
+    baris = []
+    for p in produk_dipilih:
+        teks = normalisasi_teks(p["name"])
+        v_produk = vectorizer.transform([teks])
+        tf = hitung_tf(teks)
+        bobot = {k: float(v_produk[0, vocab[k]]) for k in kata_profil}
+        baris.append({
+            "produk": p,
+            "teks": teks,
+            "tf": {k: tf.get(k, 0) for k in kata_profil},
+            "bobot": bobot,                                         # TF-IDF ternormalisasi L2
+            "kontribusi": {k: bobot_profil[k] * bobot[k] for k in kata_profil},
+            "cosine": float(cosine_similarity(v_profil, v_produk)[0, 0]),
+        })
+
+    return {
+        "n_dokumen": len(dokumen),
+        "teks_profil": teks_profil,
+        "kata": [{
+            "kata": k,
+            "df": int(df[vocab[k]]),
+            "idf": float(vectorizer.idf_[vocab[k]]),
+            "tf_profil": tf_profil.get(k, 0),
+            "bobot_profil": bobot_profil[k],
+        } for k in kata_profil],
+        "kata_tak_dikenal": [k for k in teks_profil.split() if k not in vocab],
+        "baris": baris,
+    }
+
+
+def pembanding_heatmap(kategori, daftar_kategori, terpilih, batas_harga, jumlah=5):
+    """
+    Produk terpilih + pesaing yang sebenarnya BISA menggantikannya:
+    satu kelompok kompatibilitas (socket/DDR sama) dan harganya tidak bikin total lewat budget.
+    Diurutkan dari skor akhir tertinggi.
+    """
+    grup = KUNCI_GRUP[kategori](terpilih)
+    pesaing = sorted(
+        (p for p in daftar_kategori
+         if p is not terpilih and p["price"] <= batas_harga and KUNCI_GRUP[kategori](p) == grup),
+        key=lambda p: -p["skor"],
+    )
+    return [terpilih] + pesaing[:jumlah - 1]
+
 
 if __name__ == "__main__":
     import time

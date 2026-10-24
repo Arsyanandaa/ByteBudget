@@ -437,6 +437,88 @@
       #toTop .arrow { transition: transform .45s var(--ease); }
       #toTop:hover .arrow { transform: translateY(-3px); }
 
+      /* ===== Skor di kartu komponen ===== */
+      .score {
+        display: inline-flex; align-items: baseline; gap: .5rem;
+        padding: .4rem .85rem;
+        border-radius: 999px;
+        background: rgb(var(--surface));
+        font-size: .875rem;
+      }
+      .score b { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+      /* ===== Tabel angka (TF-IDF, heatmap, evaluasi) ===== */
+      .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
+      .tbl th, .tbl td { padding: .65rem .8rem; border-bottom: 1px solid rgb(var(--line)); text-align: left; white-space: nowrap; }
+      .tbl th { font-weight: 500; color: rgb(var(--mut)); }
+      .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+      .tbl tr.redup td { color: rgb(var(--mut)); }
+      .tbl tfoot td { font-weight: 600; border-top: 1.5px solid rgb(var(--fg)); border-bottom: 0; }
+      .tbl .nama { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+
+      /* Rumus */
+      .rumus {
+        display: block;
+        margin-top: .75rem;
+        padding: .85rem 1rem;
+        border-radius: 14px;
+        background: rgb(var(--surface));
+        font-size: 1rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      .langkah { counter-reset: langkah; }
+      .langkah > li { counter-increment: langkah; position: relative; min-width: 0; padding-left: 3rem; }
+      .langkah > li::before {
+        content: counter(langkah);
+        position: absolute; left: 0; top: .1rem;
+        display: grid; place-items: center;
+        width: 2rem; height: 2rem; border-radius: 50%;
+        border: 1px solid rgb(var(--fg) / .35);
+        font-size: .875rem; font-weight: 600;
+      }
+
+      /* Panel rincian per komponen */
+      .rinci { border: 1px solid rgb(var(--line)); border-radius: 22px; transition: border-color .4s; }
+      .rinci[open], .rinci:hover { border-color: rgb(var(--fg) / .5); }
+      .rinci > summary {
+        display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem;
+        padding: 1.1rem 1.4rem;
+        cursor: pointer;
+        list-style: none;
+      }
+      .rinci > summary::-webkit-details-marker { display: none; }
+      .rinci .chev { transition: transform .45s var(--ease); }
+      .rinci[open] .chev { transform: rotate(180deg); }
+      .rinci-isi { padding: 0 1.4rem 1.4rem; }
+
+      /* Heatmap */
+      .hm td.sel {
+        min-width: 4.25rem;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        background: rgb(var(--fg) / var(--a, 0));
+        border: 2px solid rgb(var(--base));
+      }
+      .hm td.sel.gelap { color: rgb(var(--base)); font-weight: 600; }
+      .hm td.sel.nol { color: rgb(var(--mut) / .6); }
+      .hm tr.terpilih td.nama { font-weight: 600; }
+      .hm th.kata { text-align: center; }
+      .skala {
+        height: 10px; width: 160px; border-radius: 999px;
+        background: linear-gradient(90deg, rgb(var(--fg) / .12), rgb(var(--fg)));
+        box-shadow: inset 0 0 0 1px rgb(var(--line));
+      }
+
+      /* Angka evaluasi */
+      .stat { border-top: 1px solid rgb(var(--line)); padding-top: 1.25rem; }
+      .stat-num { font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; line-height: 1; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+      .ok { font-weight: 600; }
+      .gagal { color: rgb(var(--mut)); text-decoration: line-through; }
+
       [data-parallax], [data-hscroll], .ticker-wrap { will-change: transform; }
 
       @media (prefers-reduced-motion: reduce) {
@@ -474,8 +556,10 @@
         <nav class="hidden items-center text-[14.5px] text-mut md:flex" aria-label="Navigasi hasil">
           <a class="navlink" href="#ringkasan">Ringkasan</a>
           <a class="navlink" href="#komponen">Komponen</a>
+          <a class="navlink" href="#tfidf">TF-IDF</a>
+          <a class="navlink" href="#heatmap">Heatmap</a>
+          <a class="navlink" href="#evaluasi">Evaluasi</a>
           <a class="navlink" href="#kompatibilitas">Kompatibilitas</a>
-          <a class="navlink" href="#harga">Harga</a>
         </nav>
         {% endif %}
 
@@ -499,6 +583,9 @@
             {% if hasil and not pesan_error %}
               <a class="py-2" href="#ringkasan">Ringkasan</a>
               <a class="py-2" href="#komponen">Komponen</a>
+              <a class="py-2" href="#tfidf">Perhitungan TF-IDF</a>
+              <a class="py-2" href="#heatmap">Heatmap</a>
+              <a class="py-2" href="#evaluasi">Evaluasi</a>
               <a class="py-2" href="#kompatibilitas">Kompatibilitas</a>
               <a class="py-2" href="#harga">Harga</a>
             {% endif %}
@@ -613,9 +700,15 @@
               <span class="mask"><span>Lima komponen,</span></span>
               <span class="mask" style="--i:1"><span>saling cocok.</span></span>
             </h2>
-            <p data-rv="right" class="lead max-w-md lg:justify-self-end">
-              Harga dan toko diambil dari Tokopedia. Kalau link produk sudah tidak aktif, pakai tombol Cari serupa.
-            </p>
+            <div data-rv="right" class="max-w-md lg:justify-self-end">
+              <p class="lead">
+                Harga dan toko diambil dari Tokopedia. Kalau link produk sudah tidak aktif, pakai tombol Cari serupa.
+              </p>
+              <a href="{% url 'download_rakitan_excel' %}" class="btn btn-line mt-6">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+                <span class="roll"><span>Download data 5 komponen (.xlsx)</span><span aria-hidden="true">Download data 5 komponen (.xlsx)</span></span>
+              </a>
+            </div>
           </div>
 
           {% if hasil.catatan %}
@@ -649,6 +742,10 @@
                     {% if item.produk.shop_name %}{{ item.produk.shop_name }}{% if item.produk.shop_city %}, {{ item.produk.shop_city }}{% endif %}<br />{% endif %}
                     {{ item.produk.review_count|default:0 }} ulasan
                   </p>
+                  <div class="mt-4 flex flex-wrap gap-2">
+                    <span class="score"><span class="text-mut">Cosine TF-IDF</span><b>{{ item.cosine }}</b></span>
+                    <span class="score"><span class="text-mut">Skor akhir</span><b>{{ item.skor }}</b></span>
+                  </div>
                 </div>
 
                 <div class="flex flex-wrap items-end justify-between gap-4 sm:flex-col sm:items-end sm:justify-start">
@@ -672,6 +769,430 @@
           </div>
         </div>
       </section>
+
+      <!-- ================= PERHITUNGAN TF-IDF ================= -->
+      <section id="tfidf" class="scroll-mt-16 border-t border-line py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div class="grid gap-6 lg:grid-cols-2 lg:items-end">
+            <h2 data-rv="lines" class="h2">
+              <span class="mask"><span>Cara skor cosine</span></span>
+              <span class="mask" style="--i:1"><span>dihitung.</span></span>
+            </h2>
+            <p data-rv="right" class="lead max-w-md lg:justify-self-end">
+              Nama setiap produk diperlakukan sebagai dokumen, dan kata kunci kebutuhan {{ usage }} sebagai query. Kemiripan keduanya diukur dengan TF-IDF dan cosine similarity.
+            </p>
+          </div>
+
+          <!-- Langkah perhitungan -->
+          <ol class="langkah mt-16 grid gap-10 md:grid-cols-2 md:gap-x-14">
+            <li data-rv="up" style="--i:0">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">Normalisasi teks</h3>
+              <p class="mt-2 leading-relaxed text-mut">Nama dijadikan huruf kecil, angka disatukan dengan satuannya, supaya kata penting tidak terpecah atau terbuang.</p>
+              <span class="rumus" style="white-space: normal">"16 GB" → 16gb &nbsp;&nbsp; "Ryzen 5" → ryzen5 &nbsp;&nbsp; "8 Cores" → 8core</span>
+            </li>
+            <li data-rv="up" style="--i:1">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">Term Frequency (TF)</h3>
+              <p class="mt-2 leading-relaxed text-mut">Berapa kali kata t muncul di nama produk d.</p>
+              <span class="rumus">TF(t, d) = jumlah kemunculan t di d</span>
+            </li>
+            <li data-rv="up" style="--i:2">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">Inverse Document Frequency (IDF)</h3>
+              <p class="mt-2 leading-relaxed text-mut">N adalah jumlah produk di kategori itu, DF(t) jumlah produk yang namanya memuat t. Kata yang jarang muncul mendapat bobot lebih besar karena lebih membedakan.</p>
+              <span class="rumus">IDF(t) = ln( (1 + N) / (1 + DF(t)) ) + 1</span>
+            </li>
+            <li data-rv="up" style="--i:3">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">Bobot dan normalisasi L2</h3>
+              <p class="mt-2 leading-relaxed text-mut">TF dikali IDF, lalu vektornya dibagi panjangnya sendiri supaya nama yang panjang tidak otomatis unggul. Dilakukan untuk nama produk dan untuk profil kebutuhan.</p>
+              <span class="rumus">w = TF × IDF &nbsp;&nbsp;→&nbsp;&nbsp; w′ = w / √(Σ w²)</span>
+            </li>
+            <li data-rv="up" style="--i:4" class="md:col-span-2">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">Cosine similarity</h3>
+              <p class="mt-2 max-w-3xl leading-relaxed text-mut">Karena kedua vektor sudah panjangnya 1, cosine cukup dihitung sebagai jumlah perkalian bobot kata yang sama-sama ada di profil (q) dan nama produk (d). Nilainya dari 0 (tidak ada kata yang sama) sampai 1 (identik).</p>
+              <span class="rumus">cos(q, d) = Σ w′q(t) × w′d(t)</span>
+            </li>
+          </ol>
+
+          <!-- Skor akhir -->
+          <div class="mt-24 grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
+            <div data-rv="up" class="min-w-0">
+              <h3 class="text-2xl font-semibold tracking-[-0.035em]">Dari cosine ke skor akhir</h3>
+              <p class="mt-3 leading-relaxed text-mut">Cosine digabung dengan harga dan jumlah ulasan. Ketiganya diubah dulu ke skala 0–1 dengan min-max di dalam kategorinya, harga dan ulasan memakai skala log supaya produk sangat mahal atau sangat laris tidak mendominasi.</p>
+              <span class="rumus">x′ = (x − min) / (max − min)</span>
+              <span class="rumus">Skor = {{ bobot.tfidf }} × TF-IDF′ + {{ bobot.harga }} × Harga′ + {{ bobot.ulasan }} × Ulasan′</span>
+              <p class="mt-4 leading-relaxed text-mut">Setelah itu sistem mencoba kombinasi lima komponen yang kompatibel dan masuk budget, lalu memilih yang skor rakitannya paling tinggi.</p>
+            </div>
+            <div data-rv="up" style="--d:120ms" class="scroll-x min-w-0">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Komponen</th>
+                    <th class="num">Cosine</th>
+                    <th class="num">TF-IDF′</th>
+                    <th class="num">Harga′</th>
+                    <th class="num">Ulasan′</th>
+                    <th class="num">Skor akhir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in komponen %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="num">{{ item.cosine }}</td>
+                    <td class="num" title="{{ bobot.tfidf }} × {{ item.tfidf_n }} = {{ item.porsi_tfidf }}">{{ item.tfidf_n }}</td>
+                    <td class="num">{{ item.harga_n }}</td>
+                    <td class="num">{{ item.ulasan_n }}</td>
+                    <td class="num font-semibold">{{ item.skor }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <p class="mt-4 text-sm leading-relaxed text-mut">
+                Contoh {{ komponen.0.label }}: {{ bobot.tfidf }} × {{ komponen.0.tfidf_n }} + {{ bobot.harga }} × {{ komponen.0.harga_n }} + {{ bobot.ulasan }} × {{ komponen.0.ulasan_n }}
+                = {{ komponen.0.porsi_tfidf }} + {{ komponen.0.porsi_harga }} + {{ komponen.0.porsi_ulasan }} = {{ komponen.0.skor }}.
+              </p>
+            </div>
+          </div>
+
+          <!-- Rincian per komponen -->
+          <div class="mt-24">
+            <h3 data-rv="up" class="text-2xl font-semibold tracking-[-0.035em]">Perhitungan per komponen</h3>
+            <p data-rv="up" class="mt-3 max-w-2xl leading-relaxed text-mut">Angka di bawah dihitung ulang dari data yang sama dengan yang dipakai sistem. Jumlah kolom terakhir selalu sama dengan cosine di kartu komponen.</p>
+
+            <div class="mt-10 space-y-4">
+              {% for t in tabel_tfidf %}
+              <details class="rinci" {% if forloop.first %}open{% endif %}>
+                <summary>
+                  <span class="font-medium">{{ t.label }}</span>
+                  <span class="min-w-0 flex-1 truncate text-mut">{{ t.nama }}</span>
+                  <span class="score"><span class="text-mut">Cosine</span><b>{{ t.cosine }}</b></span>
+                  <svg class="chev h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                </summary>
+                <div class="rinci-isi">
+                  <dl class="grid gap-4 border-t border-line pt-5 text-[15px] md:grid-cols-[10rem_1fr]">
+                    <dt class="text-mut">Query (profil)</dt>
+                    <dd class="font-medium">{{ t.teks_profil }}</dd>
+                    <dt class="text-mut">Dokumen (nama)</dt>
+                    <dd class="font-medium">{{ t.teks_nama }}</dd>
+                    <dt class="text-mut">Jumlah dokumen</dt>
+                    <dd>N = {{ t.n_dokumen }} produk {{ t.label }}</dd>
+                  </dl>
+
+                  <div class="scroll-x mt-6">
+                    <table class="tbl">
+                      <thead>
+                        <tr>
+                          <th>Kata kunci (t)</th>
+                          <th class="num">TF produk</th>
+                          <th class="num">DF</th>
+                          <th class="num">IDF</th>
+                          <th class="num">w′q</th>
+                          <th class="num">w′d</th>
+                          <th class="num">w′q × w′d</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for b in t.baris %}
+                        <tr {% if not b.aktif %}class="redup"{% endif %}>
+                          <td>{{ b.kata }}</td>
+                          <td class="num">{{ b.tf }}</td>
+                          <td class="num">{{ b.df }}</td>
+                          <td class="num">{{ b.idf }}</td>
+                          <td class="num">{{ b.wq }}</td>
+                          <td class="num">{{ b.wd }}</td>
+                          <td class="num">{{ b.kontribusi }}</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colspan="6">Cosine = Σ (w′q × w′d)</td>
+                          <td class="num">{{ t.cosine }}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <p class="mt-5 max-w-3xl leading-relaxed text-mut">
+                    {{ t.n_cocok }} dari {{ t.baris|length }} kata kunci muncul di nama produk.
+                    {% if t.penyumbang %}Penyumbang terbesar:{% for p in t.penyumbang %} <span class="font-medium text-fg">{{ p.kata }}</span> ({{ p.nilai }}){% if not forloop.last %},{% endif %}{% endfor %}.{% endif %}
+                    w′d dinormalisasi terhadap semua kata di nama produk, termasuk kata yang bukan kata kunci, jadi baris yang ditampilkan hanya kata kunci karena kata lain dikali 0 oleh profil.
+                    {% if t.kata_tak_dikenal %}Kata profil yang tidak ditemukan di data: {{ t.kata_tak_dikenal|join:", " }}.{% endif %}
+                  </p>
+                </div>
+              </details>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HEATMAP ================= -->
+      <section id="heatmap" class="scroll-mt-16 border-t border-line py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div class="grid gap-6 lg:grid-cols-2 lg:items-end">
+            <h2 data-rv="lines" class="h2">
+              <span class="mask"><span>Heatmap bobot</span></span>
+              <span class="mask" style="--i:1"><span>kata kunci.</span></span>
+            </h2>
+            <div data-rv="right" class="max-w-md lg:justify-self-end">
+              <p class="lead">Baris adalah produk, kolom adalah kata kunci profil {{ usage }}. Makin gelap kotaknya, makin besar bobot TF-IDF kata itu di nama produk.</p>
+              <div class="mt-5 flex items-center gap-3 text-sm text-mut">
+                <span>Kecil</span><span class="skala" aria-hidden="true"></span><span>Besar</span>
+              </div>
+            </div>
+          </div>
+
+          <p data-rv="up" class="mt-10 max-w-3xl leading-relaxed text-mut">
+            Baris pertama tiap tabel adalah produk yang dipilih. Sisanya pesaing yang sebenarnya bisa menggantikannya: tetap kompatibel (socket atau DDR sama) dan tidak membuat total melebihi budget, diurutkan dari skor akhir tertinggi. Kalau produk terpilih bukan yang paling gelap, berarti ia menang karena harga atau ulasan, bisa dicek di kolom Skor akhir. Kotak kosong (0.00) berarti kata itu tidak ada di nama produk.
+          </p>
+
+          <div class="mt-12 space-y-16">
+            {% for h in heatmap %}
+            <div data-rv="up">
+              <h3 class="text-xl font-semibold tracking-[-0.03em]">{{ h.label }}</h3>
+              <div class="scroll-x mt-4">
+                <table class="tbl hm">
+                  <thead>
+                    <tr>
+                      <th>Produk</th>
+                      {% for k in h.kata %}<th class="kata">{{ k }}</th>{% endfor %}
+                      <th class="num">Cosine</th>
+                      <th class="num">Skor akhir</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for b in h.baris %}
+                    <tr {% if b.terpilih %}class="terpilih"{% endif %}>
+                      <td class="nama" title="{{ b.nama }}">
+                        {% if b.terpilih %}<span class="tag mr-2">Terpilih</span>{% endif %}{{ b.nama|truncatechars:44 }}
+                        <span class="block text-xs font-normal text-mut">{{ b.harga_str }}</span>
+                      </td>
+                      {% for c in b.sel %}
+                        <td class="sel{% if c.gelap %} gelap{% endif %}{% if not c.alpha %} nol{% endif %}" style="--a: {{ c.alpha }}">{{ c.nilai }}</td>
+                      {% endfor %}
+                      <td class="num font-semibold">{{ b.cosine }}</td>
+                      <td class="num">{{ b.skor }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% if h.baris|length == 1 %}
+                <p class="mt-3 text-sm text-mut">Tidak ada {{ h.label|lower }} lain yang kompatibel dan cukup murah untuk menggantikan pilihan ini tanpa melebihi budget.</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= EVALUASI MODEL ================= -->
+      {% if evaluasi %}
+      <section id="evaluasi" class="scroll-mt-16 border-t border-line py-24 sm:py-32">
+        <div class="mx-auto max-w-6xl px-5 sm:px-8">
+          <div class="grid gap-6 lg:grid-cols-2 lg:items-end">
+            <h2 data-rv="lines" class="h2">
+              <span class="mask"><span>Evaluasi model</span></span>
+              <span class="mask" style="--i:1"><span>kuantitatif.</span></span>
+            </h2>
+            <p data-rv="right" class="lead max-w-md lg:justify-self-end">
+              Dua pengujian. Validitas rakitan diukur otomatis dari {{ evaluasi.ringkasan.n_skenario }} skenario, relevansi ranking diukur dari penilaian manusia terhadap produk yang direkomendasikan.
+            </p>
+          </div>
+
+          <!-- A. Validitas -->
+          <div class="mt-20">
+            <h3 data-rv="up" class="text-2xl font-semibold tracking-[-0.035em]">Validitas rakitan</h3>
+            <p data-rv="up" class="mt-3 max-w-3xl leading-relaxed text-mut">
+              Sistem dijalankan untuk 5 kebutuhan × 6 budget (Rp 5 juta sampai Rp 30 juta). Setiap persentase dihitung sebagai jumlah skenario yang lolos dibagi jumlah skenario.
+            </p>
+
+            <div class="mt-10 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="stat" data-rv="up" style="--i:0">
+                <p class="stat-num">{{ evaluasi.ringkasan.berhasil_pct }}%</p>
+                <p class="mt-2 font-medium">Rakitan berhasil dibuat</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">{{ evaluasi.ringkasan.n_berhasil }} dari {{ evaluasi.ringkasan.n_skenario }} skenario menghasilkan lima komponen lengkap.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:1">
+                <p class="stat-num">{{ evaluasi.ringkasan.socket_pct }}%</p>
+                <p class="mt-2 font-medium">Socket CPU dan motherboard cocok</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">Socket hasil ekstraksi nama CPU sama dengan socket motherboard.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:2">
+                <p class="stat-num">{{ evaluasi.ringkasan.ddr_pct }}%</p>
+                <p class="mt-2 font-medium">Tipe RAM cocok</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">DDR keping RAM sama dengan DDR yang didukung motherboard.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:3">
+                <p class="stat-num">{{ evaluasi.ringkasan.budget_pct }}%</p>
+                <p class="mt-2 font-medium">Masuk budget</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">Total harga lima komponen tidak melebihi budget.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:4">
+                <p class="stat-num">{{ evaluasi.ringkasan.syarat_pct }}%</p>
+                <p class="mt-2 font-medium">Syarat kebutuhan terpenuhi</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">RAM dan SSD minimum serta porsi GPU sesuai kebutuhan. {{ evaluasi.ringkasan.dilonggarkan }} skenario syaratnya terpaksa dilonggarkan karena budget tidak cukup, dan dihitung tidak lolos.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:5">
+                <p class="stat-num">{{ evaluasi.ringkasan.utilisasi_pct }}%</p>
+                <p class="mt-2 font-medium">Rata-rata pemakaian budget</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">Total rakitan dibagi budget. Makin tinggi, makin sedikit budget yang terbuang.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:6">
+                <p class="stat-num">{{ evaluasi.ringkasan.lift }}×</p>
+                <p class="mt-2 font-medium">Kenaikan cosine komponen terpilih</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">Rata-rata cosine komponen terpilih {{ evaluasi.ringkasan.cos_terpilih }}, dibanding rata-rata seluruh produk di kategorinya {{ evaluasi.ringkasan.cos_kategori }}.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:7">
+                <p class="stat-num">{{ evaluasi.ringkasan.cakupan_kata_pct }}%</p>
+                <p class="mt-2 font-medium">Cakupan kata kunci profil</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">{{ evaluasi.ringkasan.kata_dikenal }} dari {{ evaluasi.ringkasan.total_kata }} kata kunci profil ditemukan di kosakata data, jadi tidak ada kata kunci yang sia-sia.</p>
+              </div>
+              <div class="stat" data-rv="up" style="--i:8">
+                <p class="stat-num">{{ evaluasi.ringkasan.durasi_rata }} dtk</p>
+                <p class="mt-2 font-medium">Waktu rata-rata per rakitan</p>
+                <p class="mt-1 text-sm leading-relaxed text-mut">Waktu menghitung skor dan mencari kombinasi terbaik untuk satu skenario.</p>
+              </div>
+            </div>
+
+            <details class="rinci mt-12">
+              <summary>
+                <span class="flex-1 font-medium">Rincian {{ evaluasi.ringkasan.n_skenario }} skenario</span>
+                <svg class="chev h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </summary>
+              <div class="rinci-isi scroll-x">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Kebutuhan</th>
+                      <th class="num">Budget</th>
+                      <th class="num">Total</th>
+                      <th class="num">Pemakaian</th>
+                      <th>Socket</th>
+                      <th>DDR</th>
+                      <th>Budget</th>
+                      <th>Syarat</th>
+                      <th class="num">Cosine rata-rata</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for b in evaluasi.baris %}
+                    <tr>
+                      <td>{{ b.kebutuhan }}</td>
+                      <td class="num">{{ b.budget_str }}</td>
+                      {% if b.berhasil %}
+                        <td class="num">{{ b.total_str }}</td>
+                        <td class="num">{{ b.utilisasi }}</td>
+                        <td>{% if b.socket_ok %}<span class="ok">Ya</span>{% else %}<span class="gagal">Tidak</span>{% endif %}</td>
+                        <td>{% if b.ddr_ok %}<span class="ok">Ya</span>{% else %}<span class="gagal">Tidak</span>{% endif %}</td>
+                        <td>{% if b.budget_ok %}<span class="ok">Ya</span>{% else %}<span class="gagal">Tidak</span>{% endif %}</td>
+                        <td>{% if b.syarat_ok %}<span class="ok">Ya</span>{% else %}<span class="gagal">Dilonggarkan</span>{% endif %}</td>
+                        <td class="num">{{ b.cos_terpilih }}</td>
+                      {% else %}
+                        <td colspan="7" class="text-mut">Tidak ada kombinasi yang muat</td>
+                      {% endif %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+
+          <!-- B. Relevansi -->
+          <div class="mt-24 grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:gap-16">
+            <div data-rv="up" class="min-w-0">
+              <h3 class="text-2xl font-semibold tracking-[-0.035em]">Relevansi ranking</h3>
+              <p class="mt-3 leading-relaxed text-mut">
+                Untuk setiap kebutuhan dan kategori, {{ evaluasi.k }} produk teratas sistem dan {{ evaluasi.k }} produk teratas baseline dikumpulkan (pooling). Baseline memakai harga dan ulasan saja tanpa TF-IDF, jadi selisihnya menunjukkan sumbangan TF-IDF. Penilai memberi label 2 (sangat cocok), 1 (cukup cocok), atau 0 (tidak cocok) tanpa tahu asal produknya.
+              </p>
+              <span class="rumus">Precision@{{ evaluasi.k }} = jumlah produk relevan (label ≥ 1) di top-{{ evaluasi.k }} / {{ evaluasi.k }}</span>
+              <span class="rumus">DCG@{{ evaluasi.k }} = Σ (2^label − 1) / log₂(posisi + 1)</span>
+              <span class="rumus">nDCG@{{ evaluasi.k }} = DCG@{{ evaluasi.k }} / DCG ideal</span>
+              <p class="mt-4 text-sm leading-relaxed text-mut">Precision mengukur berapa banyak rekomendasi yang relevan. nDCG juga memperhitungkan urutan: produk yang sangat cocok di posisi atas memberi nilai lebih besar. Keduanya bernilai 0 sampai 1.</p>
+            </div>
+
+            <div data-rv="up" style="--d:120ms" class="min-w-0">
+              {% if evaluasi.relevansi %}
+                <div class="scroll-x">
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th>Metode</th>
+                        <th class="num">Precision@{{ evaluasi.k }}</th>
+                        <th class="num">nDCG@{{ evaluasi.k }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="font-semibold">Sistem (TF-IDF + harga + ulasan)</td>
+                        <td class="num font-semibold">{{ evaluasi.relevansi.p_sistem }}</td>
+                        <td class="num font-semibold">{{ evaluasi.relevansi.ndcg_sistem }}</td>
+                      </tr>
+                      <tr>
+                        <td>Baseline (harga + ulasan)</td>
+                        <td class="num">{{ evaluasi.relevansi.p_baseline }}</td>
+                        <td class="num">{{ evaluasi.relevansi.ndcg_baseline }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="mt-4 text-sm leading-relaxed text-mut">
+                  Dihitung dari {{ evaluasi.relevansi.n_label }} label, mencakup {{ evaluasi.relevansi.n_kelompok }} dari {{ evaluasi.relevansi.total_kelompok }} kelompok kebutuhan × kategori. Kelompok yang labelnya belum lengkap tidak dihitung.
+                </p>
+
+                {% if evaluasi.relevansi.per_kelompok %}
+                <details class="rinci mt-6">
+                  <summary>
+                    <span class="flex-1 font-medium">Rincian per kelompok</span>
+                    <svg class="chev h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </summary>
+                  <div class="rinci-isi scroll-x">
+                    <table class="tbl">
+                      <thead>
+                        <tr>
+                          <th>Kebutuhan</th>
+                          <th>Kategori</th>
+                          <th class="num">P@{{ evaluasi.k }} sistem</th>
+                          <th class="num">P@{{ evaluasi.k }} baseline</th>
+                          <th class="num">nDCG sistem</th>
+                          <th class="num">nDCG baseline</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for x in evaluasi.relevansi.per_kelompok %}
+                        <tr>
+                          <td>{{ x.kebutuhan }}</td>
+                          <td>{{ x.kategori }}</td>
+                          <td class="num">{{ x.p_sistem }}</td>
+                          <td class="num">{{ x.p_baseline }}</td>
+                          <td class="num">{{ x.ndcg_sistem }}</td>
+                          <td class="num">{{ x.ndcg_baseline }}</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+                {% endif %}
+              {% else %}
+                <div class="note">
+                  <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4.5M12 16h.01" /></svg>
+                  <div>
+                    <p>Label penilaian belum ada, jadi Precision dan nDCG belum bisa dihitung.</p>
+                    <p class="mt-2 text-sm font-normal leading-relaxed text-mut">Download lembar penilaian, isi kolom label, simpan sebagai <span class="font-medium text-fg">label_relevansi.xlsx</span> di folder data/, lalu muat ulang halaman ini.</p>
+                  </div>
+                </div>
+              {% endif %}
+              <a href="{% url 'download_lembar_label' %}" class="btn btn-line mt-6">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+                <span class="roll"><span>Download lembar penilaian</span><span aria-hidden="true">Download lembar penilaian</span></span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
 
       <!-- ================= KOMPATIBILITAS (hitam) ================= -->
       <section id="kompatibilitas" data-expand class="inv scroll-mt-16 py-24 sm:py-36">
