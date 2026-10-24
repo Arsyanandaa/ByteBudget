@@ -703,3 +703,28 @@ def serve_local_image(request):
             print(f"❌ ERROR listing: {e}")
     
     raise Http404(f"Image not found")
+
+def serve_local_image(request):
+    """Sajikan thumbnail dari folder thumbs/, atau gambar asli kalau thumbnail belum ada."""
+    import mimetypes
+    from django.http import FileResponse
+
+    raw = urllib.parse.unquote(request.GET.get("filename", ""))
+    name = os.path.basename(raw.replace("\\", "/"))
+    if not name:
+        raise Http404("Filename not provided")
+
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    thumb = os.path.join(base, "thumbs", os.path.splitext(name)[0] + ".jpg")
+    original = os.path.join(base, "data", "images", name)
+
+    if os.path.isfile(thumb):
+        path, ctype = thumb, "image/jpeg"
+    elif os.path.isfile(original):
+        path, ctype = original, mimetypes.guess_type(original)[0] or "image/jpeg"
+    else:
+        raise Http404("Gambar tidak ditemukan")
+
+    response = FileResponse(open(path, "rb"), content_type=ctype)
+    response["Cache-Control"] = "public, max-age=2592000"
+    return response
